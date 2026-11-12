@@ -1,0 +1,1391 @@
+物见 LIVE STUDIO 网站完整源码
+360度商品三维互动直播展示平台
+本文件汇总已交付网站的全部项目自编源码，按原始文件路径排列，可用于阅读、复制、修改和归档。共收录 20 个文件，包含网页结构、样式、三维交互、手势识别、服务端、模型生成、构建与启动脚本。
+使用时，将各节代码分别保存为标明的文件路径。安装 Node.js 22 或更新版本后，可先运行 npm ci，再运行 node work/model.mjs 和 node work/studio/box-model.mjs 生成模型，然后运行 npm run build，最后运行 npm start。若使用原完整 ZIP 包，已附带构建结果，可直接运行 node scripts/local-server.mjs。
+三维模型和图像属于二进制资源，不以代码文本展开，继续保留在原私有 ZIP 包中。第三方依赖由 package.json 与 package-lock.json 完整锁定；依赖库、压缩打包文件和包含资源字节的自动生成文件由构建脚本还原，不重复展开。本文中的项目源码均完整收录，没有使用省略号代替代码。
+源码目录
+01  页面结构  dist/index.html
+02  页面样式  dist/assets/style.css
+03  主播与观众交互  work/studio/app.js
+04  三维场景与模型控制  work/studio/scene.js
+05  摄像头手势识别  work/studio/gestures.js
+06  服务端与同步接口  worker/index.js
+07  构建脚本  work/studio/build.mjs
+08  耳机模型生成  work/model.mjs
+09  礼盒模型生成  work/studio/box-model.mjs
+10  本地启动服务  scripts/local-server.mjs
+11  本地运行检查  scripts/self-test.mjs
+12  服务端与模型测试  work/studio/test.mjs
+13  项目依赖配置  package.json
+14  依赖版本锁定  package-lock.json
+15  站点部署配置  .openai/hosting.json
+16  版本控制忽略规则  .gitignore
+17  Windows 启动脚本  启动网站-Windows.bat
+18  macOS 启动脚本  启动网站-macOS.command
+19  项目说明  README.md
+20  下载包运行说明  先读我-下载与运行.txt
+
+
+01 页面结构
+dist/index.html
+主播控制台、商品列表、三维展台、观众入口与所有弹窗。
+<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#11151b"><meta name="description" content="物见 LIVE STUDIO：主播控制真实3D商品，观众请求与投票，独立OBS浏览器画面同步输出。"><title>物见 LIVE STUDIO — 3D互动直播工作台</title><link rel="stylesheet" href="/assets/style.css"></head><body>
+<div id="studio-shell"><header class="topbar"><a class="brand" href="/"><span class="brand-mark"><i data-lucide="box"></i></span><strong>物见<span>LIVE STUDIO</span></strong><span class="beta">BETA</span></a><nav><button class="active" id="nav-studio">直播工作台</button><button id="nav-assets">商品资源</button><button id="nav-guide">操作指南<i data-lucide="arrow-up-right"></i></button></nav><div class="top-actions"><span class="platform-note"><span></span>独立演示 · 未接入直播平台</span><button class="icon-btn" id="share-room" aria-label="分享观众入口" title="分享观众入口"><i data-lucide="share-2"></i></button><span class="avatar">A</span></div></header>
+<div class="workspace"><aside class="library"><div class="library-title"><h2>商品库</h2><span id="product-count">02</span><button id="open-import" aria-label="导入商品"><i data-lucide="plus"></i></button></div><label class="search"><i data-lucide="search"></i><input id="product-search" placeholder="搜索商品名称或编号" aria-label="搜索商品"></label><div class="category-tabs"><button class="active" data-category="all">全部</button><button data-category="audio">声音</button><button data-category="gift">礼盒</button></div><div class="product-list"><button class="product-card selected" data-product="aura" data-category-item="audio" data-search="aura one 头戴耳机 au001"><span class="product-thumb sand"><svg viewBox="0 0 180 150" aria-hidden="true"><defs><linearGradient id="hg"><stop stop-color="#eee8df"/><stop offset="1" stop-color="#b5a58b"/></linearGradient></defs><path d="M45 99V68C45 9 133 9 133 68v31" fill="none" stroke="url(#hg)" stroke-width="14"/><path d="M52 82v28M128 82v28" stroke="#e0d5c7" stroke-width="10"/><g transform="rotate(-10 52 108)"><rect x="34" y="80" width="32" height="53" rx="16" fill="#aa9172"/><rect x="48" y="82" width="17" height="49" rx="8" fill="#e4dacb"/></g><g transform="rotate(10 127 108)"><rect x="110" y="80" width="32" height="53" rx="16" fill="#a68b6a"/><rect x="110" y="82" width="10" height="49" rx="5" fill="#e4dacb"/></g></svg><span class="model-tag">GLB</span><span class="on-stage">展示中</span></span><span class="product-title">AURA One <i data-lucide="check"></i></span><span class="product-sub">头戴式耳机 <b>AU-001</b></span></button><button class="product-card" data-product="lune" data-category-item="gift" data-search="lune 月序礼盒 lu002"><span class="product-thumb green"><svg viewBox="0 0 180 150" aria-hidden="true"><path d="M30 62 96 33 155 62 91 94Z" fill="#466251"/><path d="M30 62 91 94v47L30 108Z" fill="#2c4439"/><path d="M91 94 155 62v46l-64 33Z" fill="#1c362c"/><path d="m29 70 62 31 65-31" fill="none" stroke="#b8a36e" stroke-width="2"/><ellipse cx="93" cy="64" rx="18" ry="8" fill="none" stroke="#c5b584" stroke-width="1.5"/><path d="M78 50v-8c0-16 27-16 27 0v8" fill="none" stroke="#bfae7c" stroke-width="3"/></svg><span class="model-tag">GLB</span><span class="on-stage">展示中</span></span><span class="product-title">LUNE 月序 <i data-lucide="check"></i></span><span class="product-sub">双罐茶礼盒 <b>LU-002</b></span></button><button class="product-card" id="custom-card" data-product="custom" data-category-item="custom" data-search="导入商品 custom" hidden><span class="product-thumb custom-thumb"><i data-lucide="package"></i><span class="model-tag">GLB</span><span class="on-stage">展示中</span></span><span class="product-title" id="custom-title">导入的商品</span><span class="product-sub">云端模型 <b>CUSTOM</b></span></button></div><button class="import-card" id="upload-card"><i data-lucide="upload"></i><strong>带上你的下一件好物</strong><span>导入 GLB / GLTF 模型</span></button><div class="library-bottom"><span class="dot"></span><span id="cloud-status">正在创建同步房间…</span><small id="room-label">ROOM —</small><button id="new-room"><i data-lucide="plus"></i> 新建演示房间</button></div></aside>
+<main class="main-workspace"><div class="sessionbar"><div><span class="small-label">YOUR BROADCAST SPACE</span><h1>声音与器物 <span>/</span> 新品鉴赏<span class="room-status" id="session-status"><span></span>彩排中</span></h1></div><div class="session-actions"><span class="session-timer"><i data-lucide="timer"></i><span id="timer">00:00:00</span></span><button class="subtle-btn" id="end-live" disabled><i data-lucide="square"></i>结束</button><button class="primary-btn" id="start-live"><i data-lucide="play"></i><span>开始演示</span></button></div></div>
+<div class="studio-grid"><section class="preview-section"><div class="section-heading"><h2><i data-lucide="monitor-play"></i>实时预览<span class="tag">PROGRAM</span></h2><div class="preview-top-actions"><span id="sync-status"><span class="dot"></span>连接中</span><button id="open-output" title="打开独立画面" aria-label="打开独立画面"><i data-lucide="external-link"></i></button></div></div><div class="stage" id="stage"><div class="stage-brand"><span>AURA</span><small>THE ART OF LISTENING</small></div><span class="stage-live" id="stage-live"><span></span>REHEARSAL</span><div class="stage-watermark" aria-hidden="true">aura.</div><div id="canvas-wrap"></div><div id="loading" class="loading"><span class="spinner"></span><span id="load-text">正在加载三维模型 · 0%</span></div><div id="hotspots"></div><article id="hotspot-card" class="hotspot-card" hidden><div><span id="hotspot-tag"></span><button id="close-hotspot" aria-label="关闭细节"><i data-lucide="x"></i></button></div><h3 id="hotspot-title"></h3><p id="hotspot-desc"></p></article><div class="camera-panel" id="camera-panel" hidden><video id="presenter-video" autoplay muted playsinline></video><div id="camera-placeholder"><i data-lucide="video"></i><span>主播画面预留区</span><small>OBS 中叠加视频采集来源</small><button id="enable-camera">开启本地摄像头预览</button></div><span class="camera-caption">PRESENTER / 主播</span></div><div class="paused-overlay" id="paused-overlay" hidden><i data-lucide="pause"></i>展示已暂停</div><div class="stage-lower"><div><span class="stage-product" id="stage-product">AURA One</span><span class="stage-desc" id="stage-desc">头戴式耳机 · 暖砂金</span></div><span class="real-3d"><span></span> REAL-TIME 3D</span></div><div class="stage-hint"><i data-lucide="mouse-pointer-2"></i><span>拖动旋转 · 滚轮缩放</span><button id="fullscreen" aria-label="全屏预览"><i data-lucide="maximize"></i></button></div></div>
+<div class="modebar"><span>展示模式</span><div class="mode-options"><button class="active" data-mode="panorama"><i data-lucide="box"></i>商品全景</button><button data-mode="presenter"><i data-lucide="panel-left"></i>主播讲解</button><button data-mode="detail"><i data-lucide="scan-search"></i>细节特写</button><button data-mode="compare"><i data-lucide="columns-2"></i>商品对比</button><button data-mode="explode"><i data-lucide="layers-3"></i>结构拆解</button></div></div>
+<div class="quick-controls"><div><button id="rotate-left" aria-label="逆时针旋转" title="逆时针旋转"><i data-lucide="rotate-ccw"></i></button><button id="auto" aria-label="自动旋转" aria-pressed="false"><i data-lucide="rotate-3d"></i><span>自动旋转</span></button><button id="rotate-right" aria-label="顺时针旋转" title="顺时针旋转"><i data-lucide="rotate-cw"></i></button><span class="control-divider"></span><button id="zoom-out" aria-label="缩小"><i data-lucide="minus"></i></button><span id="zoom-value">100%</span><button id="zoom-in" aria-label="放大"><i data-lucide="plus"></i></button><span class="control-divider"></span><button id="reset"><i data-lucide="refresh-cw"></i><span>复位</span></button></div><span class="kbd-tip">空格 暂停 <span>·</span> R 复位</span></div>
+<section class="storyboard"><div class="section-heading"><h2><i data-lucide="clapperboard"></i>讲解场景<span class="muted">一键编排展示节奏</span></h2><button id="play-story"><i data-lucide="play"></i><span>播放导览</span></button></div><div class="story-steps"><button class="story-step active" data-story="0"><span class="step-no">01</span><span><strong>初见全貌</strong><small>全景 / 环绕展示</small></span><i data-lucide="arrow-up-right"></i></button><button class="story-step" data-story="1"><span class="step-no">02</span><span><strong>触见质感</strong><small>特写 / 材质细节</small></span><i data-lucide="arrow-up-right"></i></button><button class="story-step" data-story="2"><span class="step-no">03</span><span><strong>探索内在</strong><small>拆解 / 部件结构</small></span><i data-lucide="arrow-up-right"></i></button></div><div class="story-progress"><span id="story-progress"></span></div></section>
+</section>
+<aside class="control-panel"><div class="section-heading"><h2><i data-lucide="sliders-horizontal"></i>主播控制</h2><span class="tag teal">CONTROL</span></div><section class="control-group"><div class="group-label">视角控制<span>VIEWPOINT</span></div><div class="view-grid"><button data-angle="front"><i data-lucide="square"></i>正面</button><button data-angle="back"><i data-lucide="square-dashed"></i>背面</button><button data-angle="left"><i data-lucide="panel-left"></i>左侧</button><button data-angle="right"><i data-lucide="panel-right"></i>右侧</button><button data-angle="top"><i data-lucide="panel-top"></i>顶部</button><button data-angle="bottom"><i data-lucide="panel-bottom"></i>底部</button></div></section><section class="control-group"><div class="group-label">材质与环境<span>MATERIAL</span></div><div class="field-line"><span>商品配色</span><strong id="color-name">暖砂金</strong></div><div class="swatches"><button class="swatch selected" data-color="sand" style="--swatch:#c0ad91" aria-label="暖砂金" aria-pressed="true"></button><button class="swatch" data-color="ink" style="--swatch:#4e5555" aria-label="曜石黑" aria-pressed="false"></button><button class="swatch" data-color="sage" style="--swatch:#99a28b" aria-label="雾松绿" aria-pressed="false"></button></div><div class="field-line"><span>展台背景</span></div><div class="background-options"><button class="active" data-bg="warm"><span class="bg-dot warm"></span>暖白</button><button data-bg="dark"><span class="bg-dot dark"></span>深灰</button><button data-bg="transparent"><span class="bg-dot transparent"></span>透明</button></div><label class="toggle-row" for="hotspot-toggle"><span><i data-lucide="focus"></i>细节热点</span><input id="hotspot-toggle" type="checkbox" checked><span class="toggle-ui"></span></label><button class="text-action" id="show-specs"><i data-lucide="list-filter"></i>查看商品参数<i data-lucide="chevron-right"></i></button></section><section class="gesture-card"><div><span class="gesture-icon"><i data-lucide="hand"></i></span><h3>让手势，接管灵感。<small>AI GESTURE CONTROL</small></h3><button id="gesture-info" aria-label="手势说明"><i data-lucide="info"></i></button></div><p>解放双手，让讲解更自然。</p><button id="enable-gesture"><i data-lucide="camera"></i><span>开启手势控播</span><i data-lucide="arrow-up-right"></i></button><div id="gesture-settings" hidden><label>灵敏度<input id="sensitivity" type="range" min="1" max="5" value="3"></label><span id="gesture-status">等待识别…</span></div><span class="privacy-note"><i data-lucide="shield-check"></i>摄像头仅在授权后开启 · 本地识别</span></section><button class="obs-button" id="export-obs"><i data-lucide="radio"></i><span>输出到 OBS<small>独立画面 · 云端同步</small></span><i data-lucide="arrow-up-right"></i></button><p class="output-note">控播操作与观众画面分离</p></aside>
+<section class="audience-panel"><div class="section-heading"><h2><i data-lucide="messages-square"></i>观众互动<span id="pending-count" class="count-badge">0</span></h2><div class="audience-tabs"><button class="active" data-interaction-tab="requests">展示请求</button><button data-interaction-tab="votes">角度投票</button></div><button class="text-btn" id="open-audience"><i data-lucide="external-link"></i>观众入口</button></div><div id="request-panel"><div class="empty-state" id="requests-empty"><span class="empty-icon"><i data-lucide="messages-square"></i></span><div><strong>每一个好奇，都值得回应。</strong><p>分享观众入口，接收真实的角度与细节请求。</p></div><button id="invite-audience">邀请观众<i data-lucide="arrow-up-right"></i></button></div><div id="request-list"></div></div><div id="vote-panel" hidden><div id="vote-bars"></div><p class="vote-note">每位观众可选择一个角度，修改选择会更新投票。</p></div><div class="interaction-footer"><span><span class="dot"></span>请求由主播确认后执行，观众不会抢占视角</span><button id="clear-requests">标记全部已处理</button></div></section>
+<section class="metrics-panel"><div class="section-heading"><h2><i data-lucide="chart-no-axes-combined"></i>本场数据</h2><span class="muted">真实互动统计</span></div><div class="metrics-grid"><div><span>展示时长</span><strong id="metric-duration">00:00</strong><small>本场累计</small></div><div><span>商品切换</span><strong id="metric-switches">0<small>次</small></strong><small>跨商品展示</small></div><div><span>互动请求</span><strong id="metric-requests">0<small>条</small></strong><small>来自观众入口</small></div><div><span>商品收藏</span><strong id="metric-favorites">0<small>次</small></strong><small>观众主动收藏</small></div></div><div class="popular-product"><i data-lucide="flame"></i><span>当前展示</span><strong id="metric-product">AURA One</strong></div></section>
+</div><footer><span><span class="dot"></span>商品三维互动演示 · 不含直播推流服务</span><span>物见 LIVE STUDIO <b>让每一面，都成为看点。</b></span></footer></main></div></div>
+<div id="viewer-shell" hidden><header class="viewer-header"><span class="brand"><span class="brand-mark"><i data-lucide="box"></i></span><strong>物见<span>LIVE</span></strong></span><span id="viewer-status">正在连接主播…</span><button id="viewer-share"><i data-lucide="share-2"></i>分享</button></header><div id="viewer-stage-slot"></div><section id="viewer-interactions"><div class="viewer-intro"><span class="small-label">BE PART OF THE STORY</span><h2>你想看哪一面？</h2><p>发送展示请求，由主播决定下一步视角。</p></div><div class="viewer-requests"><button data-request="front"><i data-lucide="box"></i>看正面</button><button data-request="back"><i data-lucide="rotate-3d"></i>看背面</button><button data-request="detail"><i data-lucide="scan-search"></i>看细节</button><button data-request="material"><i data-lucide="sparkles"></i>看材质</button></div><div class="viewer-vote"><div><h3>为下一个视角投票</h3><span id="vote-feedback">每人一票，可修改选择</span></div><div id="viewer-vote-options"><button data-vote="front">正面</button><button data-vote="back">背面</button><button data-vote="left">左侧</button><button data-vote="right">右侧</button><button data-vote="top">顶部</button><button data-vote="bottom">底部</button></div></div><button id="favorite-product"><i data-lucide="heart"></i><span>收藏当前商品</span></button><p class="viewer-disclaimer">独立互动演示 · 未连接抖音、淘宝等直播平台</p></section><div id="output-status" hidden>等待主播连接…</div></div>
+<dialog id="share-dialog"><div class="dialog-top"><span class="small-label">INVITE YOUR AUDIENCE</span><button data-close aria-label="关闭"><i data-lucide="x"></i></button></div><h2>好奇，是最好的互动。</h2><p>分享观众入口，邀请朋友请求视角、投票和收藏。</p><div class="qr-wrap"><canvas id="qr"></canvas><span>扫码进入 · 物见互动展厅</span></div><label class="link-label" for="audience-link">观众互动链接</label><div class="link-field"><input id="audience-link" readonly><button data-copy="audience-link"><i data-lucide="copy"></i>复制</button></div><button class="primary-btn wide" id="native-share"><i data-lucide="share-2"></i>分享观众入口</button><p class="dialog-note">无需注册 · 观众只能发送请求，无法直接操作模型</p></dialog>
+<dialog id="obs-dialog"><div class="dialog-top"><span class="small-label">BROADCAST YOUR PERSPECTIVE</span><button data-close aria-label="关闭"><i data-lucide="x"></i></button></div><h2>让每一面，走进直播间。</h2><p>在 OBS 添加「浏览器」来源，粘贴下方链接。<br>建议宽度 1920、高度 1080、帧率 30。</p><label class="dialog-toggle"><input type="checkbox" id="obs-transparent" checked>透明背景输出</label><label class="link-label" for="obs-link">独立画面来源链接</label><div class="link-field"><input id="obs-link" readonly><button data-copy="obs-link"><i data-lucide="copy"></i>复制</button></div><div class="obs-preview"><iframe title="OBS 独立输出预览" id="obs-preview" allow="fullscreen"></iframe><span>实际输出预览 · 每秒云端同步</span></div><button class="primary-btn wide" id="open-obs-window"><i data-lucide="external-link"></i>打开独立展示窗口</button><div class="info-callout"><i data-lucide="info"></i><p>控制台通过云端同步相机、商品与场景，通常延迟约 1–2 秒。主播分屏画面由 OBS 视频采集来源叠加；本网站不提供视频推流。</p></div></dialog>
+<dialog id="import-dialog"><div class="dialog-top"><span class="small-label">YOUR NEXT OBJECT</span><button data-close aria-label="关闭"><i data-lucide="x"></i></button></div><h2>让你的商品，成为主角。</h2><p>GLB 可上传到当前演示房间，并同步至 OBS 与观众。<br>GLTF 及关联文件支持本地预览，不参与云端同步。</p><label class="upload-area"><i data-lucide="upload-cloud"></i><strong>选择三维模型文件</strong><span>GLB 最大 30 MB / GLTF 需同时选择 BIN 与贴图</span><input id="model-file" type="file" multiple accept=".glb,.gltf,.bin,.png,.jpg,.jpeg,.webp"></label><p id="import-status" role="status"></p><span class="dialog-note">仅上传你拥有使用权的商品模型。房间入口持有者可查看模型。</span></dialog>
+<dialog id="gesture-dialog"><div class="dialog-top"><span class="small-label">GESTURE, NATURALLY</span><button data-close aria-label="关闭"><i data-lucide="x"></i></button></div><h2>讲解之间，自然掌控。</h2><p>开启后，浏览器会请求摄像头权限。手部识别在本机完成，视频不会上传。首次使用需要下载识别资源。</p><div class="gesture-guide"><span><i data-lucide="hand"></i><b>张掌横移</b><small>左右旋转模型</small></span><span><i data-lucide="zoom-in"></i><b>拇指食指捏合</b><small>调节观察距离</small></span><span><i data-lucide="pause"></i><b>握拳</b><small>停止自动旋转</small></span><span><i data-lucide="move-horizontal"></i><b>双手展开</b><small>拉远观察模型</small></span></div><button class="primary-btn wide" id="confirm-gesture"><i data-lucide="camera"></i>授权摄像头并开启识别</button></dialog>
+<dialog id="guide-dialog"><div class="dialog-top"><span class="small-label">A QUICK START</span><button data-close aria-label="关闭"><i data-lucide="x"></i></button></div><h2>从一件好物，到一场好讲解。</h2><ol class="guide-list"><li><b>选一件商品</b><p>左侧切换真实 GLB 模型，或导入你自己的模型。</p></li><li><b>编排你的讲解</b><p>切换视角、材质与场景，或播放三个步骤的自动导览。</p></li><li><b>把画面交给 OBS</b><p>复制独立输出链接到 OBS 浏览器来源。操作界面不会被录入。</p></li><li><b>让观众加入</b><p>分享观众入口。观众发起请求与投票，由你采纳并控制镜头。</p></li></ol><div class="info-callout"><i data-lucide="info"></i><p>这是可运行的独立控播原型。直播状态为本站演示状态，不代表已接通真实直播平台。房间有效期为 24 小时。</p></div></dialog>
+<dialog id="specs-dialog"><div class="dialog-top"><span class="small-label">OBJECT DETAILS</span><button data-close aria-label="关闭"><i data-lucide="x"></i></button></div><h2 id="specs-title">AURA One</h2><dl id="specs-list"></dl><p class="dialog-note">原创概念商品 · 参数描述仅用于三维展示演示</p></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite"></div><script type="module" src="/assets/app.js"></script></body></html>
+
+
+
+02 页面样式
+dist/assets/style.css
+全部布局、主题颜色、控件状态、移动端适配及 OBS 输出样式。
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;450;500;550;600;650;700&family=Noto+Sans+SC:wght@350;400;450;500;600;700&display=swap');
+:root{--bg:#111419;--panel:#181c22;--panel2:#1d2229;--line:#292e36;--text:#e5e8ec;--muted:#777f8c;--teal:#a7e0c9;--teal-dark:#293e37;--stage:#edece5;--red:#ef938b}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:12px 'DM Sans','Noto Sans SC',sans-serif;-webkit-font-smoothing:antialiased}button,input{font:inherit}button{color:inherit;background:none;border:0;cursor:pointer;transition:background .18s,color .18s,border-color .18s}button:hover{color:var(--teal)}button:disabled{opacity:.35;cursor:not-allowed}a{color:inherit;text-decoration:none}button,a,input{-webkit-tap-highlight-color:transparent}button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-offset:4px}input{color:inherit}svg{width:17px;height:17px;stroke-width:1.6;flex-shrink:0}button svg{pointer-events:none}[hidden]{display:none!important}.topbar{height:76px;border-bottom:1px solid var(--line);padding:0 29px;display:flex;align-items:center;justify-content:space-between;gap:22px}.brand{display:flex;align-items:center;gap:10px;white-space:nowrap}.brand-mark{display:grid;place-items:center;width:31px;height:34px;color:var(--teal)}.brand-mark svg{width:31px;height:31px;stroke-width:1.3}.brand strong{display:flex;align-items:center;gap:13px;font-size:21px;letter-spacing:3px;font-weight:500}.brand strong>span{font-size:9px;letter-spacing:2px;border-left:1px solid #4c555b;padding-left:13px;color:#b0b9c0}.beta{font-size:7px;letter-spacing:.5px;color:#818c91;background:#272d32;padding:3px 5px;border-radius:3px;margin:0 0 11px 0}.topbar nav{display:flex;align-items:stretch;gap:32px;height:100%;margin-right:auto;margin-left:45px}.topbar nav button{color:#838c97;position:relative;font-size:12px;display:flex;align-items:center;gap:7px;padding:0 3px}.topbar nav button svg{width:12px;height:12px}.topbar nav button.active{color:#dfebe4}.topbar nav button.active:after{content:'';height:2px;background:var(--teal);left:3px;right:3px;bottom:0;position:absolute}.top-actions{display:flex;align-items:center;gap:20px}.platform-note{font-size:9px;color:#77818a;display:flex;align-items:center;gap:7px}.platform-note>span{width:5px;height:5px;background:#727d89;border-radius:50%}.avatar{width:29px;height:29px;background:#293a34;color:#c2dccb;border:1px solid #405046;border-radius:50%;display:grid;place-items:center;font-size:11px}.icon-btn{display:grid;place-items:center;padding:4px;color:#adb5be}.workspace{display:grid;grid-template-columns:211px minmax(0,1fr);min-height:calc(100vh - 76px)}.library{border-right:1px solid var(--line);padding:26px 18px 22px;display:flex;flex-direction:column;gap:0;background:#14181e}.library-title{display:flex;align-items:center;gap:8px}.library-title h2{font-size:14px;letter-spacing:1px;font-weight:500;margin:0}.library-title>span{font-size:9px;padding:2px 5px;border-radius:3px;background:#262c34;color:#89939e}.library-title>button{margin-left:auto;padding:0;color:#87939d}.library-title svg{width:15px}.search{height:34px;display:flex;align-items:center;border:1px solid #2a3038;background:#1a1f26;border-radius:5px;margin-top:23px;padding:0 9px;gap:7px}.search svg{width:13px;height:13px;color:#6f7985}.search input{width:100%;border:0;background:none;padding:0;font-size:9px;outline:none}.search input::placeholder{color:#68717f}.category-tabs{display:flex;gap:17px;margin:20px 0 18px}.category-tabs button{font-size:10px;color:#77828f;padding:0 0 7px}.category-tabs button.active{color:var(--teal);border-bottom:1px solid var(--teal)}.product-list{display:flex;flex-direction:column;gap:15px}.product-card{border:1px solid #2b313a;border-radius:7px;padding:5px;text-align:left;background:#1c2229;display:flex;flex-direction:column;position:relative}.product-card.selected{border-color:#86b9a3;box-shadow:0 0 0 1px #86b9a312}.product-thumb{height:132px;width:100%;border-radius:4px;overflow:hidden;position:relative;display:flex;align-items:center;justify-content:center}.product-thumb.sand{background:radial-gradient(ellipse at 50% 30%,#e4dfd3,#b2ad9f)}.product-thumb.green{background:radial-gradient(ellipse at 50% 35%,#d4d8ca,#939d8d)}.product-thumb svg{width:146px;height:133px}.model-tag{position:absolute;top:9px;left:8px;font-size:7px;letter-spacing:1px;border:1px solid #4e554f40;color:#4d564b;border-radius:3px;padding:2px 4px}.on-stage{position:absolute;bottom:9px;right:8px;background:#1f3329db;color:#d7e9db;padding:4px 6px;border-radius:3px;font-size:8px;display:none}.selected .on-stage{display:inline}.product-title{font-size:12px;padding:11px 6px 5px;display:flex;align-items:center;justify-content:space-between;letter-spacing:.3px}.product-title svg{width:13px;height:13px;color:var(--teal);display:none}.selected .product-title svg{display:block}.product-sub{font-size:8px;color:#7e8995;display:flex;justify-content:space-between;padding:0 6px 9px}.product-sub b{font-size:7px;font-weight:400;letter-spacing:.5px;color:#697684}.custom-thumb{background:#353c40}.custom-thumb>svg{width:60px;height:60px;color:#9fb1a9}.import-card{border:1px dashed #3a424b;border-radius:7px;padding:22px 5px;display:flex;flex-direction:column;align-items:center;gap:11px;color:#838e9a;margin-top:21px}.import-card>svg{width:18px;height:18px}.import-card strong{font-weight:400;font-size:10px}.import-card>span{font-size:8px;color:#626e7c}.import-card:hover{border-color:#81b19d;background:#1b2523}.library-bottom{margin-top:auto;padding-top:60px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:8px;color:#778779}.dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:#97c6a9;flex-shrink:0}.library-bottom>small{width:100%;font-size:7px;letter-spacing:1.5px;margin:6px 0 0 11px;color:#566475}.library-bottom>button{font-size:8px;margin:15px 0 0 8px;color:#7d8f83;display:flex;gap:4px;align-items:center;padding:0}.library-bottom>button svg{width:11px;height:11px}.main-workspace{padding:27px 28px 0;min-width:0;max-width:1800px;width:100%;margin:auto}.sessionbar{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:25px}.small-label{font-size:7px;letter-spacing:1.6px;color:#677482}.sessionbar h1{display:flex;align-items:center;gap:11px;font-size:18px;font-weight:450;letter-spacing:.5px;margin:9px 0 0}.sessionbar h1>span:not(.room-status){color:#45505c;font-weight:350}.room-status{display:flex;align-items:center;gap:5px;color:#b1be98;background:#2a3025;border:1px solid #363f2e;padding:3px 6px;font-size:8px;letter-spacing:0;font-weight:400;margin-left:2px;border-radius:3px}.room-status>span{width:4px;height:4px;background:#a1b680;border-radius:50%}.room-status.live{color:#e6a7a0;background:#382c2c;border-color:#4a3434}.room-status.live>span{background:#f3968d}.session-actions{display:flex;align-items:center;gap:10px}.session-timer{display:flex;gap:7px;align-items:center;font-size:12px;letter-spacing:1px;color:#97a2ad;margin-right:8px}.session-timer svg{width:14px;height:14px}.subtle-btn,.primary-btn{display:flex;align-items:center;justify-content:center;gap:7px;padding:10px 15px;border-radius:5px;font-size:10px;white-space:nowrap}.subtle-btn{border:1px solid #38404b;color:#a5afb9}.subtle-btn svg,.primary-btn svg{width:13px;height:13px}.primary-btn{background:var(--teal);color:#203b30;border:1px solid var(--teal);font-weight:500}.primary-btn:hover{background:#c0efdc;color:#203b30}.primary-btn.paused{background:#2a3933;color:#c4e8d8;border-color:#536f61}.studio-grid{display:grid;grid-template-columns:minmax(0,1fr) 282px;gap:20px;align-items:start}.preview-section,.control-panel,.audience-panel,.metrics-panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;min-width:0}.section-heading{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;gap:10px;border-bottom:1px solid var(--line)}.section-heading h2{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:450;letter-spacing:.4px;margin:0;white-space:nowrap}.section-heading h2>svg{width:14px;height:14px;color:#8d98a4}.tag{font-size:6px;letter-spacing:1px;border:1px solid #39414a;padding:3px 4px;border-radius:3px;color:#8c97a1;margin-left:3px}.tag.teal{color:#98c4ae;border-color:#344b3f;background:#202e27}.preview-top-actions{display:flex;align-items:center;gap:13px}.preview-top-actions>span{display:flex;align-items:center;gap:5px;color:#899e8c;font-size:8px}.preview-top-actions button{padding:0;display:grid;place-items:center}.preview-top-actions svg{width:13px;height:13px;color:#7e8c97}.stage{position:relative;height:427px;min-width:0;isolation:isolate;background:radial-gradient(ellipse at 50% 38%,#f8f6ed,#e4e2d8);color:#4c584c;overflow:hidden}.stage.dark{background:radial-gradient(ellipse at 50% 38%,#3b4141,#252b2e);color:#b1bbb1}.stage.transparent{background:repeating-conic-gradient(#c0c2b9 0% 25%,#d8dacf 0% 50%) 50%/24px 24px}.stage-brand{position:absolute;left:25px;top:25px;display:flex;flex-direction:column;gap:5px;z-index:2;pointer-events:none}.stage-brand>span{font-size:13px;letter-spacing:5px}.stage-brand small{font-size:5px;letter-spacing:1.6px;opacity:.6}.stage-live{position:absolute;right:22px;top:26px;display:flex;align-items:center;gap:5px;font-size:6px;letter-spacing:1.5px;z-index:2;opacity:.7}.stage-live>span{width:4px;height:4px;border-radius:50%;background:currentColor}.stage-watermark{position:absolute;font-size:147px;font-weight:500;letter-spacing:-10px;left:calc(50% - 160px);bottom:49px;opacity:.06;pointer-events:none;z-index:-1}#canvas-wrap{position:absolute;inset:0;z-index:1}#canvas-wrap canvas{display:block;width:100%;height:100%;touch-action:none}.stage-lower{position:absolute;bottom:26px;left:25px;right:25px;display:flex;justify-content:space-between;align-items:end;z-index:2;pointer-events:none}.stage-lower>div{display:flex;flex-direction:column;gap:4px}.stage-product{font-size:20px;letter-spacing:.4px;font-weight:450}.stage-desc{font-size:7px;opacity:.6;letter-spacing:.5px}.real-3d{display:flex;align-items:center;gap:4px;font-size:5px;letter-spacing:1.3px;opacity:.7;padding-bottom:3px}.real-3d>span{width:3px;height:3px;background:currentColor;border-radius:50%}.stage-hint{position:absolute;left:25px;right:20px;bottom:9px;z-index:3;font-size:6px;opacity:.6;display:flex;gap:4px;align-items:center;pointer-events:none}.stage-hint>svg{width:9px;height:9px}.stage-hint>button{margin-left:auto;padding:0;display:grid;place-items:center;pointer-events:auto}.stage-hint>button svg{width:12px;height:12px}.loading{position:absolute;inset:0;z-index:12;background:#e9e9dfd9;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;font-size:10px;color:#53614d}.spinner{width:26px;height:26px;border:1px solid #c0c5b5;border-top-color:#526247;border-radius:50%;animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.hotspot{position:absolute;transform:translate(-50%,-50%);width:25px;height:25px;border:1px solid #ffffffc9;background:#ffffffc7;color:#5b6954;border-radius:50%;box-shadow:0 0 0 5px #ffffff26;z-index:3;padding:0;font-size:17px;display:grid;place-items:center;font-weight:350;backdrop-filter:blur(3px)}.hotspot.active,.hotspot:hover{background:#50684c;color:white;box-shadow:0 0 0 5px #ffffff50}.hotspot-card{position:absolute;bottom:85px;left:20px;z-index:5;width:224px;background:#fafbf5ed;border:1px solid #fff;border-radius:8px;box-shadow:0 5px 25px #333b2314;padding:15px 16px;color:#35432f;backdrop-filter:blur(10px)}.hotspot-card>div{display:flex;align-items:center;justify-content:space-between}.hotspot-card>div>span{font-size:7px;letter-spacing:1.2px;color:#8e9a82}.hotspot-card button{padding:0;display:grid;place-items:center}.hotspot-card button svg{width:13px;height:13px}.hotspot-card h3{font-size:13px;font-weight:500;margin:10px 0 7px}.hotspot-card p{font-size:9px;color:#7f8b73;line-height:1.8;margin:0}.modebar{padding:14px 16px;display:flex;align-items:center;gap:14px;background:#1c2128;border-bottom:1px solid #292f38}.modebar>span{font-size:8px;color:#6e7a89;white-space:nowrap}.mode-options{display:flex;align-items:center;gap:3px;flex:1;justify-content:space-between}.mode-options button{display:flex;align-items:center;justify-content:center;gap:5px;font-size:8px;padding:8px 7px;color:#85929f;white-space:nowrap;border-radius:4px}.mode-options button svg{width:12px;height:12px}.mode-options button.active{background:#30413a;color:#b7dfc9}.quick-controls{display:flex;align-items:center;justify-content:space-between;padding:12px 15px;border-bottom:1px solid var(--line);gap:10px}.quick-controls>div{display:flex;align-items:center;gap:4px}.quick-controls button{display:flex;align-items:center;gap:6px;padding:7px 8px;font-size:9px;color:#92a08f;border-radius:4px}.quick-controls button[aria-pressed=true]{background:#2e4238;color:#b6e4c8}.quick-controls button:hover{background:#262e32}.quick-controls svg{width:13px;height:13px}.control-divider{height:15px;width:1px;background:#333b43;margin:0 4px}#zoom-value{font-size:9px;color:#b6c3b5;min-width:32px;text-align:center}.kbd-tip{font-size:7px;color:#576574;white-space:nowrap}.kbd-tip>span{margin:0 5px}.storyboard .section-heading{height:47px;border:0;padding:0 16px}.storyboard .section-heading h2{font-size:10px}.muted{font-size:8px;color:#667585;font-weight:400;letter-spacing:0}.storyboard .section-heading h2>.muted{margin-left:4px}.section-heading>button,.text-btn{font-size:8px;display:flex;align-items:center;gap:4px;color:#a6b9a5;padding:0;white-space:nowrap}.section-heading>button svg{width:10px;height:10px}.story-steps{display:flex;gap:9px;padding:0 16px 16px}.story-step{display:flex;align-items:center;gap:10px;padding:13px 10px;border:1px solid #2d353e;background:#1d232b;border-radius:5px;flex:1;text-align:left;min-width:0}.story-step.active{background:#26372e;border-color:#496751}.step-no{font-size:17px;font-weight:400;color:#53626b;letter-spacing:-1px}.active>.step-no{color:#96bd98}.story-step>span:nth-child(2){display:flex;flex-direction:column;gap:4px}.story-step strong{font-size:9px;font-weight:400;color:#acb6bd;white-space:nowrap}.story-step small{font-size:6px;color:#657680;white-space:nowrap}.story-step.active strong{color:#c2dec3}.story-step.active small{color:#91ad91}.story-step>svg{width:10px;height:10px;margin-left:auto;color:#607e68}.story-progress{height:2px;background:#202a25}.story-progress>span{height:100%;display:block;width:0;background:#9fc9a4}.control-panel .section-heading{padding:0 17px}.control-group{padding:19px 17px;border-bottom:1px solid var(--line)}.group-label{display:flex;align-items:center;justify-content:space-between;font-size:10px;color:#b5bfc6;margin-bottom:15px}.group-label>span{font-size:6px;letter-spacing:1.5px;color:#5f6f7d}.view-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.view-grid button{display:flex;align-items:center;gap:6px;justify-content:center;font-size:9px;padding:10px 3px;border:1px solid #343b45;background:#20262e;color:#a6b2be;border-radius:4px}.view-grid button svg{width:12px;height:12px;color:#708190}.view-grid button.active{border-color:#769780;background:#2b3d32;color:#c3dec4}.view-grid button.active svg{color:#9ac19f}.field-line{display:flex;align-items:center;justify-content:space-between;font-size:9px;color:#7d8c99}.field-line>strong{font-weight:400;color:#b0bcac;font-size:8px}.swatches{display:flex;align-items:center;gap:13px;margin:14px 0 21px}.swatch{width:22px;height:22px;background:var(--swatch);border:3px solid var(--panel);border-radius:50%;padding:0;position:relative}.swatch.selected:after{content:'';position:absolute;inset:-4px;border:1px solid #94be9e;border-radius:50%}.background-options{display:flex;gap:6px;margin:12px 0 17px}.background-options button{display:flex;align-items:center;justify-content:center;gap:5px;font-size:8px;padding:8px 7px;border:1px solid #313a43;background:#20272e;border-radius:4px;flex:1;color:#82929d}.background-options button.active{border-color:#607d65;background:#2a3b2f;color:#bacdb9}.bg-dot{width:9px;height:9px;border-radius:50%;display:block}.bg-dot.warm{background:#d8d5c6}.bg-dot.dark{background:#394449;border:1px solid #637278}.bg-dot.transparent{background:repeating-conic-gradient(#869388 0% 25%,#3b483e 0% 50%) 50%/5px 5px}.toggle-row{display:flex;align-items:center;justify-content:space-between;font-size:9px;color:#b4c0b9;position:relative;cursor:pointer}.toggle-row>span:first-child{display:flex;align-items:center;gap:7px}.toggle-row svg{width:12px;height:12px;color:#7a8e83}.toggle-row input{position:absolute;opacity:0;right:0;width:30px;height:19px;cursor:pointer}.toggle-ui{width:28px;height:16px;border-radius:12px;background:#3a434b;position:relative;pointer-events:none}.toggle-ui:after{content:'';position:absolute;top:3px;left:3px;width:10px;height:10px;background:#aab8ae;border-radius:50%;transition:.2s}input:checked+.toggle-ui{background:#83b39a}input:checked+.toggle-ui:after{background:#e2f1de;left:15px}input:focus-visible+.toggle-ui{outline:2px solid var(--teal);outline-offset:3px}.text-action{display:flex;align-items:center;gap:7px;padding:17px 0 0;font-size:8px;color:#82968c;width:100%}.text-action>svg{width:12px;height:12px}.text-action>svg:last-child{margin-left:auto}.gesture-card{margin:18px 14px 14px;background:linear-gradient(120deg,#25372f,#1d2a26);border:1px solid #3c5142;border-radius:6px;padding:14px 12px}.gesture-card>div:first-child{display:flex;align-items:center;gap:9px}.gesture-icon{width:29px;height:29px;background:#3b5040;color:#b5d1ad;border-radius:6px;display:grid;place-items:center}.gesture-icon svg{width:16px;height:16px}.gesture-card h3{font-size:10px;font-weight:450;margin:0;color:#c4dac0}.gesture-card h3>small{display:block;font-size:5px;letter-spacing:1px;margin-top:5px;color:#7f9b7f}.gesture-card #gesture-info{margin-left:auto;padding:0;color:#68856e}.gesture-card #gesture-info svg{width:12px;height:12px}.gesture-card>p{font-size:8px;color:#7f9d80;margin:11px 0 14px}.gesture-card>button{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;border:1px solid #607a5f;background:#3b543d;border-radius:4px;padding:9px;font-size:9px;color:#d1e4c7}.gesture-card>button>svg{width:12px;height:12px}.gesture-card>button>svg:last-child{margin-left:auto;width:10px}.gesture-card>button>svg:first-child{margin-right:auto}.privacy-note{display:flex;align-items:center;gap:4px;font-size:6px;color:#66806b;margin-top:10px;white-space:nowrap}.privacy-note svg{width:9px;height:9px}#gesture-settings{margin-top:15px;font-size:9px;color:#a7bba2}#gesture-settings label{display:flex;align-items:center;gap:10px}#sensitivity{width:100%;accent-color:#8ebf9b}#gesture-status{display:block;margin-top:10px;color:#83aa8a;font-size:8px}.obs-button{margin:0 14px;display:flex;align-items:center;gap:10px;background:var(--teal);border-radius:5px;padding:12px 14px;color:#24402d;width:calc(100% - 28px);text-align:left}.obs-button:hover{background:#bfeccd;color:#24402d}.obs-button>svg:first-child{width:20px;height:20px}.obs-button>span{font-size:11px;font-weight:500;display:flex;flex-direction:column;gap:4px}.obs-button small{font-size:7px;font-weight:400;color:#4f735a}.obs-button>svg:last-child{margin-left:auto;width:15px;height:15px}.output-note{text-align:center;color:#5c7463;font-size:7px;margin:10px 0 14px}.audience-panel,.metrics-panel{min-height:205px}.audience-panel .section-heading{padding:0 16px;gap:12px}.audience-panel h2 .count-badge{font-size:8px;color:#a3b6a6;background:#29362c;border:1px solid #3c4d3d;padding:2px 5px;border-radius:3px;margin-left:1px}.audience-tabs{display:flex;align-items:center;gap:16px;height:100%;margin-right:auto;margin-left:7px}.audience-tabs button{padding:0;height:100%;font-size:8px;color:#748578;position:relative}.audience-tabs button.active{color:#c1d3bc}.audience-tabs button.active:after{content:'';height:2px;position:absolute;bottom:0;left:0;right:0;background:#97bc95}.empty-state{display:flex;align-items:center;gap:14px;padding:33px 18px;min-height:130px}.empty-icon{width:35px;height:35px;display:grid;place-items:center;border-radius:50%;background:#252f2b;color:#6f8b77}.empty-icon svg{width:17px;height:17px}.empty-state strong{font-size:10px;font-weight:400;color:#9dac9f}.empty-state p{font-size:8px;color:#667e6e;margin:7px 0 0}.empty-state>button{display:flex;align-items:center;gap:5px;font-size:8px;margin-left:auto;color:#9fba9f;white-space:nowrap}.empty-state>button svg{width:10px;height:10px}.interaction-footer{display:flex;align-items:center;justify-content:space-between;padding:11px 15px;border-top:1px solid var(--line);font-size:6px;gap:8px;color:#5f7b66}.interaction-footer>span{display:flex;align-items:center;gap:5px}.interaction-footer .dot{width:3px;height:3px}.interaction-footer>button{font-size:7px;color:#7c9681;padding:0;white-space:nowrap}.request-row{display:flex;align-items:center;gap:10px;padding:12px 17px;border-bottom:1px solid #28332c}.request-row .request-icon{width:27px;height:27px;background:#2a3730;border-radius:5px;display:grid;place-items:center;color:#a4c6ab}.request-row .request-icon svg{width:13px;height:13px}.request-row strong{font-size:9px;font-weight:400}.request-row small{display:block;color:#667f6d;font-size:7px;margin-top:3px}.request-row .request-total{margin-left:auto;font-size:11px;color:#adceae}.request-row button{font-size:8px;border:1px solid #4f6b50;color:#b3d5af;border-radius:4px;padding:6px 9px;margin-left:8px;background:#2c422e}.request-row button:hover{background:#3a563c}#request-list{max-height:245px;overflow:auto}#vote-bars{padding:15px 18px;display:grid;grid-template-columns:1fr 1fr;gap:13px 25px}.vote-item{font-size:8px;display:grid;grid-template-columns:28px 1fr 20px;align-items:center;gap:8px;color:#95b29a}.vote-track{height:4px;border-radius:3px;background:#2a392d;overflow:hidden}.vote-track>span{display:block;height:100%;background:#9fcea5;transition:width .4s}.vote-item button{font-size:7px;color:#b4cdb1;padding:0}.vote-note{font-size:7px;color:#637c69;padding:0 18px;margin:0 0 13px}.metrics-panel .section-heading{padding:0 15px}.metrics-panel .muted{font-size:6px}.metrics-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:17px 16px;padding:20px 16px 15px}.metrics-grid>div{display:flex;flex-direction:column;gap:5px}.metrics-grid>div>span{font-size:8px;color:#7d8d81}.metrics-grid strong{font-size:23px;line-height:1.15;font-weight:400;color:#c5d8c1;letter-spacing:-.8px}.metrics-grid strong small{font-size:7px;letter-spacing:0;margin-left:5px;font-weight:400;color:#5f7f68}.metrics-grid>div>small{font-size:6px;color:#526e5c}.popular-product{display:flex;align-items:center;gap:6px;padding:12px 16px;border-top:1px solid var(--line);font-size:7px;color:#6b8772}.popular-product svg{width:11px;height:11px;color:#b3bc85}.popular-product strong{font-weight:400;color:#b4cca9;font-size:8px;margin-left:auto}footer{display:flex;align-items:center;justify-content:space-between;gap:16px;font-size:7px;padding:18px 0 20px;color:#465e50}footer>span{display:flex;align-items:center;gap:5px}footer .dot{width:3px;height:3px;background:#587f63}footer>span:last-child{font-size:6px;letter-spacing:1px}footer b{font-weight:400;font-size:7px;letter-spacing:0;margin-left:8px;color:#58705e}.camera-panel{position:absolute;top:0;bottom:0;left:0;width:32%;z-index:4;background:#263b30;border-right:1px solid #ffffff30;display:flex;align-items:center;justify-content:center;color:#bdcfba}.camera-panel video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}#camera-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:#1c3127}#camera-placeholder>svg{width:29px;height:29px;color:#748f7a}#camera-placeholder>span{font-size:10px}#camera-placeholder>small{font-size:6px;color:#74907d}#camera-placeholder>button{font-size:7px;border:1px solid #53735a;padding:7px;margin-top:8px;border-radius:3px}.camera-caption{position:absolute;bottom:14px;left:12px;letter-spacing:1px;font-size:6px;color:#a4c0a5}.paused-overlay{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:10px;z-index:6;padding:18px 25px;border-radius:8px;color:#dce7d8;background:#223a2ddd;backdrop-filter:blur(7px);font-size:12px;pointer-events:none}dialog{color:var(--text);background:#1b2420;border:1px solid #425646;border-radius:12px;width:470px;max-width:calc(100vw - 28px);padding:27px;box-shadow:0 25px 120px #0005;max-height:90dvh;overflow:auto}dialog::backdrop{background:#07110caa;backdrop-filter:blur(7px)}.dialog-top{display:flex;align-items:center;justify-content:space-between;gap:20px}.dialog-top .small-label{color:#6f9278}.dialog-top button{padding:0;display:grid;place-items:center;color:#91ad91}.dialog-top svg{width:17px;height:17px}dialog h2{font-size:23px;letter-spacing:.4px;font-weight:400;margin:24px 0 12px;color:#d1e5ca}dialog>p{font-size:10px;line-height:1.95;color:#839e86}.qr-wrap{background:#f0f4e9;padding:18px;margin:24px 0;border-radius:8px;display:flex;align-items:center;flex-direction:column}.qr-wrap canvas{width:180px!important;height:180px!important}.qr-wrap>span{font-size:9px;color:#6c8364;letter-spacing:1px;margin-top:13px}.link-label{font-size:9px;color:#87a58b}.link-field{margin:9px 0 18px;display:flex;border:1px solid #425b47;border-radius:5px;background:#14201a;overflow:hidden}.link-field input{width:0;flex:1;background:none;border:0;padding:12px;font-size:9px;color:#8da98c}.link-field button{border-left:1px solid #3d5541;padding:0 13px;display:flex;align-items:center;gap:5px;font-size:9px;color:#b7d8af}.link-field svg{width:12px;height:12px}.wide{width:100%;padding:12px;font-size:11px;margin-top:16px}.dialog-note{font-size:8px!important;color:#64836c!important;text-align:center;display:block;line-height:1.9}.dialog-toggle{display:flex;align-items:center;gap:7px;font-size:10px;color:#9ab898;margin:20px 0 18px}.dialog-toggle input{accent-color:#a3d3b4}.obs-preview{border:1px solid #3d5140;overflow:hidden;border-radius:6px;background:#0b1710;margin-top:18px}.obs-preview iframe{width:100%;height:210px;border:0;display:block}.obs-preview>span{display:block;text-align:center;padding:8px;font-size:8px;color:#698d70}.info-callout{display:flex;align-items:start;gap:9px;background:#25382b;border:1px solid #38553f;border-radius:5px;padding:12px;margin-top:18px}.info-callout>svg{width:13px;height:13px;color:#6c9a75;margin-top:3px}.info-callout p{margin:0;font-size:9px;color:#83a887;line-height:1.8}.upload-area{border:1px dashed #527a59;background:#21372a;border-radius:7px;display:flex;flex-direction:column;align-items:center;gap:13px;padding:30px 10px;margin:25px 0 13px;cursor:pointer}.upload-area>svg{width:25px;height:25px;color:#a3c8a0}.upload-area>strong{font-size:12px;font-weight:400;color:#bed6b7}.upload-area>span{font-size:8px;color:#6e9876;text-align:center}.upload-area>input{font-size:9px;width:100%;padding-left:16px;color:#8eaf8f}.gesture-guide{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:23px 0}.gesture-guide>span{display:flex;flex-direction:column;gap:8px;border:1px solid #3b5542;background:#23372a;padding:16px;border-radius:6px}.gesture-guide svg{color:#9ec59e;width:23px;height:23px}.gesture-guide b{font-size:11px;font-weight:400;color:#b7d3b0}.gesture-guide small{font-size:8px;color:#71977b}.guide-list{padding-left:20px;margin-top:25px;color:#a8c6a5;font-size:11px}.guide-list>li{padding:0 0 14px 8px}.guide-list b{font-weight:450}.guide-list p{font-size:9px;color:#74997e;line-height:1.8;margin:7px 0 0}#specs-list{font-size:10px}#specs-list>div{display:flex;justify-content:space-between;gap:20px;padding:13px 0;border-bottom:1px solid #354d3b}#specs-list dt{color:#6d9175}#specs-list dd{margin:0;color:#b2d0ab;text-align:right}.toast{position:fixed;bottom:25px;left:50%;transform:translate(-50%,15px);opacity:0;pointer-events:none;z-index:100;padding:13px 22px;background:#d7edce;color:#30462b;box-shadow:0 5px 30px #0003;border:1px solid #b1d49f;border-radius:6px;font-size:11px;transition:.2s;max-width:90vw;text-align:center;line-height:1.7}.toast.visible{opacity:1;transform:translate(-50%,0)}.stage:fullscreen,.stage.pseudo-fullscreen{width:100vw;height:100dvh;position:fixed;inset:0;z-index:40}.stage:fullscreen .stage-lower,.stage.pseudo-fullscreen .stage-lower{bottom:55px;left:45px;right:45px}.stage:fullscreen .stage-product,.stage.pseudo-fullscreen .stage-product{font-size:32px}.stage:fullscreen .stage-desc,.stage.pseudo-fullscreen .stage-desc{font-size:11px}.stage:fullscreen .stage-hint,.stage.pseudo-fullscreen .stage-hint{left:45px;right:45px;bottom:30px;font-size:10px}.viewer-header{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:20px 5%;border-bottom:1px solid var(--line);height:78px}.viewer-header .brand strong{font-size:20px}.viewer-header .brand strong>span{font-size:9px}.viewer-header>span:not(.brand){font-size:10px;color:#a0c4a2}.viewer-header>button{display:flex;align-items:center;gap:7px;font-size:10px;color:#b1d1a9}.viewer-header>button svg{width:13px;height:13px}#viewer-stage-slot{padding:28px 5% 0;max-width:1300px;margin:auto}#viewer-stage-slot .stage{height:min(62vw,570px);min-height:360px;border-radius:10px}#viewer-stage-slot .stage-brand{top:30px;left:30px}#viewer-stage-slot .stage-lower{bottom:37px;left:30px;right:30px}#viewer-stage-slot .stage-hint{display:none}#viewer-stage-slot .stage-product{font-size:26px}#viewer-stage-slot .stage-desc{font-size:9px}#viewer-stage-slot .stage-watermark{font-size:200px;left:calc(50% - 220px)}#viewer-stage-slot .hotspot{pointer-events:none}#viewer-stage-slot .hotspot-card button{display:none}#viewer-interactions{max-width:860px;margin:auto;padding:32px 5% 40px}.viewer-intro{margin-bottom:23px}.viewer-intro h2{font-size:25px;font-weight:400;letter-spacing:1px;color:#d1e3c7;margin:11px 0}.viewer-intro p{font-size:10px;color:#7d9c81}.viewer-requests{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.viewer-requests button{display:flex;align-items:center;justify-content:center;gap:8px;padding:15px 10px;background:#263b2c;border:1px solid #3d5a42;border-radius:6px;color:#b4d2ae;font-size:11px}.viewer-requests button:hover{background:#36553e}.viewer-requests button svg{width:17px;height:17px}.viewer-vote{background:#1b2a20;border:1px solid #314b37;padding:22px;border-radius:8px;margin-top:24px}.viewer-vote>div:first-child{display:flex;align-items:center;justify-content:space-between;gap:12px}.viewer-vote h3{font-size:13px;font-weight:400;margin:0;color:#c3dcb9}.viewer-vote>div:first-child>span{font-size:8px;color:#6f987a}#viewer-vote-options{display:flex;gap:10px;margin-top:18px}#viewer-vote-options button{flex:1;font-size:10px;padding:10px;border:1px solid #3f5b45;border-radius:4px;color:#8db393}#viewer-vote-options button.active{background:#a0cba0;color:#244128;border-color:#a0cba0}#favorite-product{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;font-size:11px;padding:14px;background:#2b3c2b;border:1px solid #476349;border-radius:5px;margin-top:20px;color:#abcaa1}#favorite-product.active{color:#d7b8a3;border-color:#92765e;background:#463d2e}.viewer-disclaimer{text-align:center;font-size:8px;color:#5b7d63;margin:25px 0 0}body.output{background:transparent}body.output #viewer-shell{height:100dvh}body.output .viewer-header,body.output #viewer-interactions{display:none}body.output #viewer-stage-slot{padding:0;max-width:none;width:100vw;height:100dvh}body.output #viewer-stage-slot .stage{height:100dvh;min-height:0;border-radius:0}body.output #viewer-stage-slot .stage.transparent{background:transparent}body.output .stage-brand{top:4%;left:4%}body.output .stage-brand>span{font-size:clamp(13px,1.8vw,30px)}body.output .stage-brand>small{font-size:clamp(5px,.7vw,12px)}body.output #viewer-stage-slot .stage-lower{bottom:5%;left:4%;right:4%}body.output #viewer-stage-slot .stage-product{font-size:clamp(20px,3vw,50px)}body.output #viewer-stage-slot .stage-desc{font-size:clamp(8px,1vw,18px)}body.output .real-3d{font-size:clamp(5px,.6vw,10px)}body.output .stage-live{font-size:clamp(6px,.7vw,12px);right:4%;top:4%}body.output .hotspot-card{bottom:15%;left:4%;width:clamp(224px,24vw,420px);padding:clamp(15px,1.7vw,30px)}body.output .hotspot-card h3{font-size:clamp(13px,1.3vw,23px)}body.output .hotspot-card p{font-size:clamp(9px,.9vw,16px)}#output-status{position:fixed;bottom:3%;left:4%;z-index:30;color:#f2b6a5;background:#342a23d9;border:1px solid #77694a;padding:12px 20px;border-radius:6px;font-size:13px}
+@media(min-width:1650px){.workspace{grid-template-columns:242px minmax(0,1fr)}.library{padding-left:24px;padding-right:24px}.main-workspace{padding:32px 34px 0}.studio-grid{grid-template-columns:minmax(0,1fr) 310px;gap:24px}.stage{height:515px}.stage-watermark{font-size:175px;left:calc(50% - 185px)}.mode-options button{font-size:10px;padding:9px 12px}.modebar>span{font-size:10px}.story-step{padding:16px 14px}.story-step strong{font-size:11px}.story-step small{font-size:8px}.view-grid button{padding:13px 4px;font-size:10px}.control-group{padding:22px}.gesture-card{margin:21px 18px 18px;padding:18px 14px}.gesture-card h3{font-size:12px}.gesture-card>p{font-size:10px}.gesture-card>button{padding:13px;font-size:11px}.privacy-note{font-size:7px}.obs-button{padding:17px;width:calc(100% - 36px);margin:0 18px}.output-note{margin-bottom:18px}.product-thumb{height:155px}.product-thumb svg{height:150px;width:165px}.product-title{font-size:13px}.product-sub{font-size:9px}.audience-panel,.metrics-panel{min-height:230px}.empty-state{padding:40px 24px;min-height:151px}.metrics-grid{padding:24px 20px;gap:23px 20px}.quick-controls{padding:15px}.section-heading{height:56px}}
+@media(max-width:1250px){.workspace{grid-template-columns:180px minmax(0,1fr)}.library{padding:23px 13px}.main-workspace{padding:24px 19px 0}.studio-grid{grid-template-columns:minmax(0,1fr) 250px;gap:15px}.topbar{padding:0 22px}.topbar nav{margin-left:18px;gap:23px}.platform-note{display:none}.sessionbar h1{font-size:16px;gap:7px}.session-timer{font-size:10px;margin-right:0}.session-actions{gap:7px}.primary-btn,.subtle-btn{padding:9px 10px;font-size:9px}.stage{height:405px}.modebar{padding:12px 10px;gap:6px}.modebar>span{display:none}.mode-options button{font-size:7px;padding:8px 5px;gap:4px}.mode-options button svg{width:11px;height:11px}.kbd-tip{display:none}.quick-controls{padding:11px 10px;justify-content:center}.story-step{padding:12px 7px;gap:7px}.story-steps{padding-left:10px;padding-right:10px;gap:6px}.step-no{font-size:15px}.story-step strong{font-size:8px}.story-step small{font-size:5px}.story-step>svg{display:none}.storyboard .section-heading{padding:0 10px}.storyboard .section-heading .muted{display:none}.preview-section>.section-heading{padding:0 12px}.tag{font-size:5px}.control-group{padding:18px 14px}.control-panel .section-heading{padding:0 14px}.view-grid{gap:6px}.view-grid button{font-size:8px;padding:9px 1px;gap:5px}.gesture-card{padding:13px 10px;margin-left:11px;margin-right:11px}.gesture-card h3{font-size:9px}.gesture-icon{width:26px;height:26px}.privacy-note{font-size:5px}.obs-button{width:calc(100% - 22px);margin:0 11px;padding:12px}.audience-tabs{margin-left:0;gap:11px}.audience-panel .section-heading{padding:0 12px;gap:8px}.audience-panel .section-heading>button{font-size:0;gap:0}.audience-panel .section-heading>button svg{width:12px;height:12px}.empty-state{padding:30px 14px;gap:10px}.empty-state strong{font-size:9px}.empty-state p{font-size:7px}.empty-state>button{display:none}.product-thumb{height:115px}.product-thumb svg{height:112px;width:135px}.import-card{font-size:9px}.import-card strong{font-size:9px}.import-card span{font-size:7px}.interaction-footer{font-size:5px;padding:11px}.interaction-footer button{font-size:6px}footer b{display:none}}
+@media(max-width:1020px){.topbar nav{gap:18px;margin-left:12px}.brand strong>span{font-size:7px;letter-spacing:1px;padding-left:10px}.brand strong{gap:10px;font-size:19px}.beta{display:none}.topbar nav button{font-size:10px}.top-actions{gap:14px}.workspace{grid-template-columns:152px minmax(0,1fr)}.library{padding-left:10px;padding-right:10px}.library-title h2{font-size:12px}.search{padding:0 6px;gap:3px}.search input{font-size:8px}.category-tabs{gap:14px}.category-tabs button{font-size:9px}.product-thumb{height:100px}.product-thumb svg{height:100px;width:115px}.product-sub{font-size:6px}.product-sub b{font-size:6px}.product-title{font-size:10px}.import-card strong{font-size:8px}.import-card span{font-size:6px}.library-bottom{font-size:6px}.library-bottom>small{font-size:5px}.main-workspace{padding:20px 15px 0}.studio-grid{grid-template-columns:minmax(0,1fr) 226px;gap:12px}.sessionbar{align-items:start;margin-bottom:21px}.sessionbar h1{font-size:14px;gap:7px;flex-wrap:wrap}.small-label{font-size:6px}.sessionbar .small-label{font-size:5px}.session-timer{display:none}.session-actions{gap:5px;margin-top:13px}.session-actions .primary-btn{padding:8px;font-size:8px}.session-actions .subtle-btn{padding:8px;font-size:8px}.room-status{font-size:6px;padding:2px 4px}.stage{height:390px}.stage-brand{left:17px;top:22px}.stage-live{font-size:5px;right:15px;top:24px}.stage-lower{left:18px;right:18px}.stage-product{font-size:17px}.stage-watermark{font-size:120px;left:calc(50% - 130px)}.mode-options button{font-size:0;padding:9px 11px;gap:0}.mode-options button.active{font-size:7px;gap:4px}.mode-options button svg{width:13px;height:13px}.quick-controls button{padding:7px 6px;font-size:8px}.quick-controls button svg{width:12px;height:12px}.control-divider{margin:0 3px}.story-step{flex-direction:column;align-items:start;gap:7px;padding:10px 8px}.story-step>span:nth-child(2){gap:5px}.story-step small{font-size:6px}.story-steps{gap:7px}.storyboard .section-heading h2{font-size:9px}.control-panel .section-heading{padding:0 12px}.control-group{padding:18px 12px}.group-label{font-size:9px}.group-label>span{font-size:5px}.view-grid button{padding:10px 4px;font-size:7px;gap:5px}.view-grid svg{width:10px;height:10px}.background-options button{padding:8px 5px;font-size:7px}.gesture-card h3{font-size:8px}.gesture-card h3 small{font-size:4px}.gesture-card>div:first-child{gap:7px}.gesture-icon{width:24px;height:24px}.gesture-card>button{font-size:8px}.gesture-card .privacy-note{font-size:5px;letter-spacing:-.15px}.obs-button>span{font-size:10px}.obs-button small{font-size:6px}.empty-state{padding:25px 12px;min-height:130px}.empty-state .empty-icon{display:none}.empty-state p{font-size:7px;line-height:1.8}.interaction-footer>button{display:none}.metrics-panel .section-heading>.muted{display:none}.metrics-grid strong{font-size:21px}.section-heading h2{font-size:10px}.preview-top-actions>span{font-size:6px}.preview-top-actions{gap:9px}.preview-section .tag{display:none}.audience-tabs{gap:10px}.audience-tabs button{font-size:7px}.audience-panel .count-badge{display:none}.audience-panel .section-heading{gap:10px}.hotspot-card{left:14px;width:205px;padding:12px;bottom:75px}.hotspot-card h3{font-size:11px}.hotspot-card p{font-size:8px}footer{font-size:6px}footer>span:last-child{display:none}}
+@media(max-width:800px){.topbar{height:67px;padding:0 19px}.topbar nav{gap:15px;margin-left:auto}.topbar nav button{font-size:9px}.topbar nav button svg{display:none}.topbar nav button:nth-child(2){display:none}.brand strong>span{display:none}.brand strong{font-size:20px}.top-actions .avatar{display:none}.workspace{display:block}.library{border-right:0;border-bottom:1px solid var(--line);padding:15px 18px;display:block}.library-title{margin-bottom:13px}.library-title h2{font-size:11px}.library-title>span{font-size:7px}.library-title>button{margin-left:auto}.search,.category-tabs,.import-card,.library-bottom{display:none}.product-list{display:flex;flex-direction:row;gap:12px;overflow:auto}.product-card{min-width:190px;display:grid;grid-template-columns:60px 1fr;grid-template-rows:1fr 1fr;column-gap:12px;padding:5px 9px 5px 5px;height:70px}.product-thumb{height:58px;width:60px;grid-row:span 2}.product-thumb svg{height:60px;width:67px}.product-title{padding:7px 0 0;font-size:11px;align-self:center;gap:10px}.product-sub{padding:0;font-size:7px;align-self:center;gap:10px}.product-sub b{font-size:6px}.model-tag{display:none}.on-stage{font-size:5px;right:3px;bottom:3px;padding:2px}.main-workspace{padding:22px 18px 0}.sessionbar h1{font-size:17px}.sessionbar .small-label{font-size:6px}.sessionbar .session-actions{margin-top:11px}.session-actions .primary-btn,.session-actions .subtle-btn{font-size:9px;padding:9px 12px}.room-status{font-size:7px;padding:3px 5px}.studio-grid{grid-template-columns:minmax(0,1fr) 232px;gap:14px}.stage{height:420px}.stage-brand>span{font-size:11px}.stage-watermark{font-size:110px;left:calc(50% - 117px)}.real-3d{display:none}.quick-controls button span{display:none}.quick-controls #auto{width:31px}.control-divider{margin:0 2px}.quick-controls>div{gap:2px}.quick-controls button{padding:7px 6px}.quick-controls button svg{width:13px;height:13px}.story-step{padding:11px 8px;gap:6px}.story-step strong{font-size:8px}.story-step small{display:none}.storyboard .section-heading>button{font-size:7px}.audience-tabs{gap:14px}.audience-panel .section-heading>button{display:none}.empty-state{padding:32px 14px;min-height:150px}.empty-state strong{font-size:10px}.empty-state p{font-size:8px}.audience-panel .section-heading h2{font-size:9px}.interaction-footer{font-size:5px}.metrics-grid{gap:24px 16px}.request-row{padding:12px;gap:8px}.request-row .request-icon{display:none}.request-row strong{font-size:8px}.request-row small{font-size:6px}.request-row button{font-size:7px;padding:6px}.request-row .request-total{font-size:10px}#vote-bars{grid-template-columns:1fr;gap:13px}.viewer-header{height:70px}.viewer-header>span:not(.brand){font-size:8px}.viewer-header .brand strong{font-size:18px}.viewer-header .brand strong>span{display:inline-block}.viewer-header .brand-mark{width:24px}.viewer-header .brand-mark svg{width:24px}#viewer-stage-slot .stage{min-height:420px}#viewer-interactions{padding-top:28px}.viewer-requests{gap:8px}.viewer-requests button{font-size:9px;padding:14px 9px;gap:6px}.viewer-requests button svg{width:14px;height:14px}.viewer-vote{padding:19px}.viewer-vote h3{font-size:11px}.viewer-vote>div:first-child>span{font-size:7px}#viewer-vote-options{gap:7px}#viewer-vote-options button{font-size:9px;padding:9px 6px}}
+@media(max-width:580px){.topbar nav{gap:18px}.topbar nav button{font-size:9px}.topbar nav button:nth-child(3){font-size:0;gap:0}.topbar nav button:nth-child(3):after{content:'帮助';font-size:9px}.top-actions{gap:5px}.icon-btn svg{width:15px;height:15px}.topbar{gap:12px;padding:0 16px}.brand{gap:6px}.brand-mark{width:27px}.brand-mark svg{width:27px;height:27px}.brand strong{font-size:19px}.library{padding:14px 16px}.library-title{margin-bottom:11px}.product-card{min-width:174px;grid-template-columns:53px 1fr;column-gap:10px}.product-thumb{width:53px}.product-title{font-size:10px}.product-sub{font-size:6px}.product-sub b{font-size:5px}.main-workspace{padding:22px 14px 0}.sessionbar{margin-bottom:18px;gap:8px}.sessionbar h1{font-size:14px;gap:6px;letter-spacing:0}.sessionbar .small-label{font-size:5px}.room-status{font-size:6px;padding:2px 4px;margin-left:0}.session-actions{gap:6px}.session-actions .primary-btn{padding:8px 10px;font-size:8px}.session-actions .subtle-btn{font-size:0;padding:8px;gap:0}.session-actions .subtle-btn svg{width:11px;height:11px}.session-actions .primary-btn svg{width:11px;height:11px}.studio-grid{display:flex;flex-direction:column;gap:17px}.preview-section,.control-panel,.audience-panel,.metrics-panel{width:100%}.preview-section{order:0}.control-panel{order:1;display:grid;grid-template-columns:1fr 1fr;gap:0;align-items:start}.control-panel>.section-heading{grid-column:span 2}.control-panel .control-group{padding:19px 13px;height:100%}.control-panel .control-group:nth-child(2){border-right:1px solid var(--line)}.control-panel .control-group:nth-child(3){border-bottom:1px solid var(--line)}.control-group .group-label{font-size:9px;margin-bottom:17px}.group-label>span{font-size:4px}.view-grid{grid-template-columns:1fr 1fr;gap:8px}.view-grid button{font-size:8px;padding:12px 4px;gap:6px}.view-grid button svg{width:11px;height:11px}.control-group .field-line{font-size:8px}.field-line strong{font-size:7px}.swatches{margin:14px 0 18px;gap:12px}.swatch{width:20px;height:20px}.background-options{gap:4px}.background-options button{font-size:6px;padding:8px 3px;gap:4px}.bg-dot{width:7px;height:7px}.toggle-row{font-size:8px}.text-action{font-size:7px;padding-top:15px}.control-panel .gesture-card{margin:16px 12px 15px;grid-column:span 2;padding:16px 15px}.gesture-card h3{font-size:11px}.gesture-card h3 small{font-size:5px}.gesture-icon{width:32px;height:32px}.gesture-card>p{font-size:9px}.gesture-card>button{font-size:10px;padding:12px}.gesture-card .privacy-note{font-size:7px}.control-panel .obs-button{grid-column:span 2;margin:0 12px;width:calc(100% - 24px);padding:14px}.obs-button>span{font-size:12px}.obs-button small{font-size:8px}.control-panel .output-note{grid-column:span 2;font-size:8px;margin:13px 0 18px}.audience-panel{order:2}.metrics-panel{order:3}.stage{height:430px}.stage-brand{top:24px;left:21px}.stage-brand>span{font-size:13px;letter-spacing:5px}.stage-brand small{font-size:5px}.stage-live{top:26px;right:20px;font-size:5px}.stage-product{font-size:20px}.stage-desc{font-size:8px}.stage-lower{left:21px;bottom:29px}.stage-watermark{font-size:140px;left:calc(50% - 145px);bottom:49px}.stage-hint{left:21px;right:20px;font-size:6px;bottom:11px}.section-heading{height:49px}.preview-section>.section-heading{padding:0 14px}.preview-section .section-heading h2{font-size:11px}.preview-top-actions>span{font-size:7px}.modebar{padding:12px 9px}.mode-options{gap:4px}.mode-options button,.mode-options button.active{font-size:7px;gap:4px;padding:9px 4px}.mode-options button svg{width:11px;height:11px}.quick-controls{padding:12px 10px}.quick-controls button{padding:7px 9px}.quick-controls button span{display:inline}.quick-controls #auto{width:auto;font-size:8px;gap:5px}.quick-controls>div{gap:3px}.control-divider{margin:0 4px}.storyboard .section-heading{padding:0 12px;height:48px}.storyboard .section-heading h2{font-size:10px}.storyboard .section-heading>button{font-size:8px}.story-steps{padding:0 12px 15px;gap:8px}.story-step{padding:13px 10px;gap:9px}.story-step strong{font-size:9px}.story-step small{display:block;font-size:6px}.step-no{font-size:18px}.empty-state{padding:28px 18px;min-height:130px;gap:12px}.empty-state .empty-icon{display:grid;width:31px;height:31px}.empty-state>div>strong{font-size:10px}.empty-state>div>p{font-size:8px;line-height:1.9}.audience-panel .section-heading{padding:0 14px;gap:14px}.audience-panel .section-heading h2{font-size:10px}.audience-tabs{margin-left:auto;gap:18px}.audience-tabs button{font-size:8px}.interaction-footer{font-size:6px;padding:12px}.metrics-panel .section-heading{padding:0 16px}.metrics-panel .section-heading>.muted{display:block;font-size:7px}.metrics-grid{grid-template-columns:repeat(4,1fr);gap:12px;padding:24px 17px}.metrics-grid>div>span{font-size:8px}.metrics-grid strong{font-size:23px}.metrics-grid strong small{font-size:6px;margin-left:3px}.metrics-grid>div>small{font-size:6px}.popular-product{padding:14px 17px;font-size:8px}.popular-product strong{font-size:9px}footer{padding:20px 3px 25px;font-size:6px}.request-row{padding:13px 15px;gap:10px}.request-row .request-icon{display:grid}.request-row strong{font-size:9px}.request-row small{font-size:7px}.request-row button{font-size:8px;padding:7px 10px}.request-row .request-total{font-size:12px}#vote-bars{grid-template-columns:1fr 1fr;gap:15px 20px}.hotspot-card{left:17px;bottom:85px;width:210px;padding:14px}.hotspot-card h3{font-size:12px}.hotspot-card p{font-size:9px}.camera-panel{width:33%}#camera-placeholder>span{font-size:8px}#camera-placeholder>small{font-size:5px}#camera-placeholder>button{font-size:6px;margin:4px;padding:6px;max-width:90px;line-height:1.8}.camera-caption{font-size:4px}.viewer-header{height:67px;padding:0 5%}.viewer-header>span:not(.brand){font-size:7px}.viewer-header .brand strong>span{font-size:7px;padding-left:8px}.viewer-header .brand strong{gap:8px}.viewer-header .brand-mark svg{width:22px;height:22px}.viewer-header .brand strong{font-size:18px}.viewer-header>button{font-size:9px;gap:5px}#viewer-stage-slot{padding-top:20px}#viewer-stage-slot .stage{height:440px;min-height:0}#viewer-stage-slot .stage-brand{left:22px;top:24px}#viewer-stage-slot .stage-watermark{font-size:145px;left:calc(50% - 155px)}#viewer-stage-slot .stage-lower{left:22px;bottom:26px}#viewer-stage-slot .stage-product{font-size:23px}#viewer-stage-slot .stage-desc{font-size:8px}#viewer-interactions{padding-top:27px}.viewer-intro h2{font-size:24px}.viewer-requests{grid-template-columns:1fr 1fr;gap:10px}.viewer-requests button{font-size:11px;padding:16px 12px;gap:9px}.viewer-vote>div:first-child{align-items:start;flex-direction:column;gap:8px}.viewer-vote h3{font-size:12px}#viewer-vote-options{flex-wrap:wrap;gap:9px}#viewer-vote-options button{flex:initial;width:calc((100% - 18px)/3);font-size:10px;padding:10px}.viewer-vote{padding:19px}.viewer-vote>div:first-child>span{font-size:8px}.viewer-disclaimer{font-size:7px}dialog{padding:23px}dialog h2{font-size:22px}.obs-preview iframe{height:185px}.toast{font-size:10px;padding:11px 16px}.stage:fullscreen,.stage.pseudo-fullscreen{height:100dvh}.stage:fullscreen .stage-lower,.stage.pseudo-fullscreen .stage-lower{left:25px;right:25px;bottom:40px}.stage:fullscreen .stage-hint,.stage.pseudo-fullscreen .stage-hint{left:25px;right:25px;bottom:21px;font-size:8px}.stage:fullscreen .stage-product,.stage.pseudo-fullscreen .stage-product{font-size:25px}.stage:fullscreen .stage-desc,.stage.pseudo-fullscreen .stage-desc{font-size:9px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation-duration:.01ms!important}}
+body.output .camera-panel{background:transparent;border:0}body.output #camera-placeholder,body.output .camera-caption{display:none!important}
+
+
+
+03 主播与观众交互
+work/studio/app.js
+控播状态、房间创建、云端同步、商品切换、分享、投票及模型导入。
+import * as T from 'three';import{GLTFLoader}from'three/addons/loaders/GLTFLoader.js';import{ProductScene,DEFAULT_CAMERA,DEFAULT_TARGET,points}from'./scene.js';import QRCode from'qrcode';import{createIcons,icons}from'lucide';
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];createIcons({icons});const query=new URLSearchParams(location.search);let role=['audience','output'].includes(query.get('role'))?query.get('role'):'host';const isHost=role==='host',stage=$('#stage');let room=query.get('room'),token=null,connected=false,cloudReady=false,dirty=true,saving=false,localOnly=false,lastRemoteAt=0,events=[],storyTimer=null,storyIndex=0,storyStart=0,gestureStop=null,cameraStream=null,gestureLoading=false,lastInteraction=0,lastPublish=0,customUrl=null;
+const originalProduct=query.get('product');const initialProduct=originalProduct==='lune'?'lune':'aura';
+let state={product:initialProduct,modelVersion:0,color:query.get('color')==='ink'?'ink':query.get('color')==='sage'?'sage':initialProduct==='lune'?'sage':'sand',mode:'panorama',background:'warm',status:'rehearsal',hotspots:true,activeHotspot:-1,auto:false,autoDirection:1,angle:'free',camera:[...DEFAULT_CAMERA],target:[...DEFAULT_TARGET],switches:0,startedAt:null,elapsed:0,handled:[],productSeconds:{aura:0,lune:0,custom:0}};
+const catalog={aura:{name:'AURA One',type:'头戴式耳机',tag:'AU-001',brand:'AURA',motto:'THE ART OF LISTENING',url:'/assets/aura-one.glb',specs:{'产品系列':'AURA One','展示类型':'头戴包耳式耳机','设计材质':'金属饰面 / 软质耳垫','模型格式':'GLB · PBR','展示配色':'暖砂金 / 曜石黑 / 雾松绿'}},lune:{name:'LUNE 月序',type:'双罐茶礼盒',tag:'LU-002',brand:'LUNE',motto:'A GIFT, BEAUTIFULLY UNFOLDED',url:'/assets/lune-box.glb',specs:{'产品系列':'LUNE 月序','展示类型':'双罐概念茶礼盒','结构组成':'盒盖 / 提手 / 内托 / 双罐','设计材质':'哑光盒体 / 金属色饰件','模型格式':'GLB · PBR'}},custom:{name:'导入的商品',type:'自定义三维模型',brand:'YOUR OBJECT',motto:'EVERY DETAIL HAS A STORY',specs:{'模型类型':'用户导入商品','模型格式':'GLB / GLTF','材质说明':'使用原模型材质'}}};
+const angleLabels={front:'正面',back:'背面',left:'左侧',right:'右侧',top:'顶部',bottom:'底部',detail:'细节',material:'材质'};const colorNames={sand:'暖砂金',ink:'曜石黑',sage:'雾松绿'};const statusNames={rehearsal:'彩排中',live:'演示中',paused:'已暂停',ended:'已结束'};
+function safeGet(k){try{return localStorage.getItem(k);}catch{return null;}}function safeSet(k,v){try{localStorage.setItem(k,v);}catch{}}
+let client=safeGet('aura.viewer.id');if(!client){client=crypto.randomUUID();safeSet('aura.viewer.id',client);}let toastTimer;function toast(msg){$('#toast').textContent=msg;$('#toast').classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),3700);}
+function openDialog(id){const d=$(id);if(!d.open)d.showModal();}$$('[data-close]').forEach(b=>b.addEventListener('click',()=>b.closest('dialog').close()));$$('dialog').forEach(d=>d.addEventListener('click',e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close();}}));
+if(!isHost){$('#studio-shell').hidden=true;$('#viewer-shell').hidden=false;$('#viewer-stage-slot').appendChild(stage);if(role==='output'){document.body.classList.add('output');$('#output-status').hidden=false;stage.querySelector('#camera-placeholder').hidden=true;}$('#close-hotspot').hidden=true;}
+let scene=new ProductScene(stage,{follower:!isHost,onChange:patch=>{if(!isHost)return;Object.assign(state,patch);dirty=true;if(patch.auto!==undefined)updateControls();},onHotspot:i=>setState({activeHotspot:state.activeHotspot===i?-1:i,auto:false}),onReady:()=>{if(isHost)dirty=true;},onError:msg=>{toast(msg);$('#load-text').textContent=msg;}});
+function modelUrl(){if(state.product==='custom')return customUrl||`/api/rooms/${room}/model?v=${state.modelVersion}`;return catalog[state.product]?.url||catalog.aura.url;}
+function setState(patch,{remote=false}={}){state={...state,...patch};if(!remote){dirty=true;if(!isHost)return;}const rendered={...state};if(role==='output'&&query.get('transparent')==='1')rendered.background='transparent';scene.apply(rendered,{remote,url:modelUrl()});updateUI();}
+function updateControls(){$('#auto').setAttribute('aria-pressed',String(state.auto));$('#auto').querySelector('span').textContent=state.auto?'暂停旋转':'自动旋转';$$('[data-angle]').forEach(b=>b.classList.toggle('active',b.dataset.angle===state.angle));$('#hotspot-toggle').checked=state.hotspots;}
+function updateUI(){const p=catalog[state.product]||catalog.aura;$$('[data-product]').forEach(b=>b.classList.toggle('selected',b.dataset.product===state.product));$$('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===state.mode));$$('[data-bg]').forEach(b=>b.classList.toggle('active',b.dataset.bg===state.background));$$('[data-color]').forEach(b=>{const on=b.dataset.color===state.color;b.classList.toggle('selected',on);b.setAttribute('aria-pressed',String(on));b.disabled=state.product==='custom';});$('#color-name').textContent=state.product==='custom'?'原模型材质':colorNames[state.color];$('#stage-product').textContent=p.name;$('#stage-desc').textContent=`${p.type} · ${state.product==='custom'?'导入模型':colorNames[state.color]}`;$('.stage-brand>span').textContent=p.brand;$('.stage-brand small').textContent=p.motto;$('.stage-watermark').textContent=state.product==='lune'?'lune.':state.product==='custom'?'object.':'aura.';$('#stage-live').innerHTML=`<span></span>${({rehearsal:'REHEARSAL',live:'DEMO LIVE',paused:'PAUSED',ended:'ENDED'})[state.status]}`;$('#session-status').innerHTML=`<span></span>${statusNames[state.status]}`;$('#session-status').classList.toggle('live',state.status==='live');const play=state.status==='rehearsal'||state.status==='ended'||state.status==='paused';$('#start-live').querySelector('span').textContent=state.status==='paused'?'继续演示':state.status==='live'?'暂停演示':'开始演示';$('#start-live').classList.toggle('paused',state.status==='live');$('#end-live').disabled=['rehearsal','ended'].includes(state.status);$('#metric-product').textContent=p.name;$('#metric-switches').textContent=String(state.switches);$('#viewer-status').textContent=(connected?'主播画面同步 · ':'')+statusNames[state.status];$('#zoom-value').textContent=`${Math.round(6.4/Math.max(new T.Vector3().fromArray(state.camera).distanceTo(new T.Vector3().fromArray(state.target)),.01)*100)}%`;if(state.product==='custom'){$('#custom-card').hidden=false;$('#product-count').textContent='03';}updateControls();}
+setState(state,{remote:!isHost});
+async function api(path,{method='GET',body,auth=false,binary=false}={}){const headers={};if(auth)headers.Authorization='Bearer '+token;if(body&&!binary)headers['Content-Type']='application/json';const r=await fetch(path,{method,headers,body:body?binary?body:JSON.stringify(body):undefined,cache:'no-store'});let data;try{data=await r.json();}catch{throw Error('同步服务返回了无效响应');}if(!r.ok)throw Error(data.error||'同步请求失败');return data;}
+function roomPath(t){return `/api/rooms/${room}/${t}`;}
+function connection(ok,msg){connected=ok;if(isHost){$('#cloud-status').textContent=msg|| (ok?'云端同步已连接':'同步暂时中断');$('#sync-status').innerHTML=`<span class="dot"></span>${localOnly?'本地预览':ok?'云端同步 · 1–2 s':'连接中断'}`;$('#sync-status').style.color=ok?'#8fac93':'#b3927d';}else{$('#viewer-status').textContent=ok?'主播画面同步 · '+statusNames[state.status]:'等待主播连接';if(role==='output'){$('#output-status').hidden=ok;$('#output-status').textContent=msg||'等待主播连接…';}}}
+async function createRoom(){if(!isHost)return;try{connection(false,'正在创建同步房间…');const d=await api('/api/rooms',{method:'POST',body:{}});room=d.id;token=d.token;safeSet('aura.host.'+room,token);safeSet('aura.lastRoom',room);const u=new URL(location.href);u.search='';u.searchParams.set('room',room);history.replaceState(null,'',u.pathname+u.search);$('#room-label').textContent='ROOM '+room.slice(0,8).toUpperCase();cloudReady=true;localOnly=false;dirty=true;await publishState();connection(true);pollEvents();}catch(e){connection(false,e.message);toast('云端房间创建失败：'+e.message);}}
+async function initRoom(){if(isHost){if(!room){const last=safeGet('aura.lastRoom');if(last&&safeGet('aura.host.'+last))room=last;}if(room)token=safeGet('aura.host.'+room);if(room&&token){try{const d=await api(roomPath('state'));if(d.state)setState(d.state);cloudReady=true;$('#room-label').textContent='ROOM '+room.slice(0,8).toUpperCase();history.replaceState(null,'',`/?room=${room}`);connection(true);pollEvents();return;}catch(e){toast('之前的房间不可用，正在创建新房间');}}await createRoom();}else{if(!room){connection(false,'缺少房间编号，请使用主播分享的完整链接。');$('#load-text').textContent='请使用主播提供的观众或 OBS 链接。';return;}await pollState();}}
+async function publishState(){if(!isHost||!room||!token||!cloudReady||saving||localOnly||!dirty||Date.now()-lastPublish<1250)return;lastPublish=Date.now();saving=true;dirty=false;try{await api(roomPath('state'),{method:'PUT',body:state,auth:true});connection(true);}catch(e){dirty=true;connection(false,e.message);}finally{saving=false;}}
+async function pollState(){if(isHost||!room)return;try{const d=await api(roomPath('state'));if(!d.state){connection(false,'等待主播准备商品画面…');return;}const fresh=Date.now()-d.state.updatedAt<12000;connection(fresh,fresh?'':'主播控制台暂未更新，保留最后画面');if(d.state.updatedAt!==lastRemoteAt){lastRemoteAt=d.state.updatedAt;setState(d.state,{remote:true});}else if(!fresh&&role==='output')$('#output-status').hidden=false;}catch(e){connection(false,e.message);}}
+async function pollEvents(){if(!isHost||!room||!token||!cloudReady)return;try{const d=await api(roomPath('events'),{auth:true});events=d.events;renderEvents();}catch(e){/* state channel reports its own connection failures */}}
+initRoom();setInterval(()=>{if(isHost){if(document.hidden&&state.auto&&scene.controls){scene.controls.update(1.3);}publishState();}else pollState();},1300);if(isHost)setInterval(pollEvents,2600);
+let lastTick=Date.now();setInterval(()=>{const now=Date.now(),dt=Math.min(now-lastTick,4000);lastTick=now;if(isHost){if(state.status==='live'){state.elapsed+=dt;state.productSeconds[state.product]=(state.productSeconds[state.product]||0)+dt/1000;}if(!localOnly)dirty=true;}const ms=state.elapsed||0,sec=Math.floor(ms/1000),hh=String(Math.floor(sec/3600)).padStart(2,'0'),mm=String(Math.floor(sec/60)%60).padStart(2,'0'),ss=String(sec%60).padStart(2,'0');$('#timer').textContent=`${hh}:${mm}:${ss}`;$('#metric-duration').textContent=`${String(Math.floor(sec/60)).padStart(2,'0')}:${ss}`;if(scene.camera&&scene.controls){$('#zoom-value').textContent=`${Math.round(6.4/Math.max(scene.camera.position.distanceTo(scene.controls.target),.01)*100)}%`;}if(storyTimer)$('#story-progress').style.width=`${Math.min((performance.now()-storyStart)/24000*100,100)}%`;},1000);
+function stopStory(){clearInterval(storyTimer);storyTimer=null;$('#play-story span').textContent='播放导览';$('#story-progress').style.width='0%';}
+function chooseProduct(key){if(!isHost)return;if(key==='custom'&&customUrl==='local-gltf')return toast('本地 GLTF 请重新导入后预览');if(key==='custom'&&!customUrl&&!state.modelVersion)return toast('请先导入商品模型');stopStory();localOnly=false;setState({product:key,color:key==='lune'?'sage':'sand',mode:'panorama',auto:false,activeHotspot:-1,switches:state.switches+(key===state.product?0:1),angle:'free'});scene.move(DEFAULT_CAMERA,DEFAULT_TARGET);toast('正在展示 '+catalog[key].name);}
+$$('[data-product]').forEach(b=>b.addEventListener('click',()=>chooseProduct(b.dataset.product)));
+let category='all';function filterProducts(){const search=$('#product-search').value.toLowerCase().trim();$$('[data-product]').forEach(b=>{const exists=b.dataset.product!=='custom'||!!customUrl||state.modelVersion>0;b.hidden=!exists||(category!=='all'&&b.dataset.categoryItem!==category)||!b.dataset.search.includes(search);});}
+$('#product-search').addEventListener('input',filterProducts);$$('[data-category]').forEach(b=>b.addEventListener('click',()=>{category=b.dataset.category;$$('[data-category]').forEach(t=>t.classList.toggle('active',t===b));filterProducts();}));
+function requireReady(){if(!scene.ready){toast('请等待三维模型加载完成');return false;}if(state.status==='paused'){toast('请先继续演示，再调整商品');return false;}return true;}
+function chooseMode(mode){if(!requireReady())return;if(mode==='explode'&&state.product==='custom'){toast('自定义模型需配置部件名称后才支持结构拆解');return;}setState({mode,auto:false,activeHotspot:-1});if(mode==='detail'){setState({hotspots:true,activeHotspot:0});scene.focus(0);}else if(mode==='explode'){scene.move([4,3.5,5.8],[0,.65,0]);}else if(mode==='compare'){scene.move([2.5,1.5,7.5],[0,.1,0]);}else if(mode==='presenter'){scene.move([4.7,1.8,6.7],[.5,.34,0]);}else scene.move(DEFAULT_CAMERA,DEFAULT_TARGET);}
+$$('[data-mode]').forEach(b=>b.addEventListener('click',()=>{stopStory();chooseMode(b.dataset.mode);}));$$('[data-angle]').forEach(b=>b.addEventListener('click',()=>{if(!requireReady())return;stopStory();scene.angle(b.dataset.angle);setState({angle:b.dataset.angle,auto:false,activeHotspot:-1});}));
+$$('[data-color]').forEach(b=>b.addEventListener('click',()=>{if(requireReady())setState({color:b.dataset.color});}));$$('[data-bg]').forEach(b=>b.addEventListener('click',()=>setState({background:b.dataset.bg})));$('#hotspot-toggle').addEventListener('change',e=>setState({hotspots:e.target.checked,activeHotspot:-1}));$('#close-hotspot').addEventListener('click',()=>setState({activeHotspot:-1}));
+$('#auto').addEventListener('click',()=>{if(requireReady()){stopStory();setState({auto:!state.auto,angle:'free'});}});$('#rotate-left').addEventListener('click',()=>{if(requireReady())scene.rotate(-1);});$('#rotate-right').addEventListener('click',()=>{if(requireReady())scene.rotate(1);});$('#zoom-in').addEventListener('click',()=>{if(requireReady())scene.zoom(.83);});$('#zoom-out').addEventListener('click',()=>{if(requireReady())scene.zoom(1.2);});function reset(){if(!requireReady())return;stopStory();setState({mode:'panorama',auto:false,activeHotspot:-1,angle:'free'});scene.move(DEFAULT_CAMERA,DEFAULT_TARGET);}$('#reset').addEventListener('click',reset);
+$('#start-live').addEventListener('click',()=>{if(!scene.ready)return toast('请等待模型加载完成');if(state.status==='live'){setState({status:'paused',auto:false});stopStory();toast('演示已暂停，输出保留当前视角');}else{setState({status:'live',startedAt:state.startedAt||Date.now()});toast('本站演示已开始 · 未连接直播平台');}});$('#end-live').addEventListener('click',()=>{setState({status:'ended',auto:false});stopStory();toast('本场演示已结束，互动数据保留在当前房间');});
+function storyStep(i){storyIndex=i;$$('[data-story]').forEach(b=>b.classList.toggle('active',Number(b.dataset.story)===i));if(i===0){chooseMode('panorama');setState({auto:true,hotspots:true});}if(i===1)chooseMode('detail');if(i===2)chooseMode('explode');}
+$$('[data-story]').forEach(b=>b.addEventListener('click',()=>{stopStory();storyStep(Number(b.dataset.story));}));$('#play-story').addEventListener('click',()=>{if(!requireReady())return;if(storyTimer){stopStory();return;}if(state.product==='custom')return toast('自定义模型尚未配置讲解场景');storyStart=performance.now();storyStep(0);$('#play-story span').textContent='停止导览';storyTimer=setInterval(()=>{if(storyIndex>=2){stopStory();setState({auto:false});toast('本轮商品导览已完成');return;}storyStep(storyIndex+1);},8000);});
+async function toggleFullscreen(){if(document.fullscreenElement){await document.exitFullscreen();return;}if(stage.classList.contains('pseudo-fullscreen')){stage.classList.remove('pseudo-fullscreen');document.body.style.overflow='';return;}try{if(!stage.requestFullscreen)throw Error();await stage.requestFullscreen();}catch{stage.classList.add('pseudo-fullscreen');document.body.style.overflow='hidden';toast('再次点击全屏图标可退出沉浸模式');}}$('#fullscreen').addEventListener('click',toggleFullscreen);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){stage.classList.remove('pseudo-fullscreen');document.body.style.overflow='';}if(!isHost||['INPUT','TEXTAREA','BUTTON'].includes(e.target.tagName)||$$('dialog').some(d=>d.open))return;if(e.code==='Space'){e.preventDefault();if(requireReady())setState({auto:!state.auto});}if(e.key.toLowerCase()==='r')reset();if(scene.ready&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();scene.rotate(e.key==='ArrowLeft'?-.4:.4);}});
+$('#new-room').addEventListener('click',async()=>{if(!confirm('创建新演示房间？原房间的观众与 OBS 链接不会跟随切换。'))return;stopStory();state={...state,status:'rehearsal',elapsed:0,startedAt:null,switches:0,handled:[],product:'aura',modelVersion:0,productSeconds:{aura:0,lune:0,custom:0}};events=[];customUrl=null;renderEvents();setState(state);await createRoom();});
+function audienceUrl(){const u=new URL(location.origin);u.searchParams.set('role','audience');u.searchParams.set('room',room||'');return u.toString();}function outputUrl(){const u=new URL(location.origin);u.searchParams.set('role','output');u.searchParams.set('room',room||'');if($('#obs-transparent').checked)u.searchParams.set('transparent','1');return u.toString();}
+async function showShare(){if(!room||!connected)return toast('请先连接同步房间');$('#audience-link').value=audienceUrl();openDialog('#share-dialog');try{await QRCode.toCanvas($('#qr'),audienceUrl(),{width:240,margin:2,color:{dark:'#304d35',light:'#f0f4e9'},errorCorrectionLevel:'M'});}catch{toast('二维码生成失败，请复制观众链接');}}
+['#share-room','#invite-audience','#viewer-share'].forEach(sel=>$(sel).addEventListener('click',showShare));$('#native-share').addEventListener('click',async()=>{if(navigator.share){try{await navigator.share({title:'物见 · 3D互动展厅',text:'告诉主播，你想看哪一面。',url:audienceUrl()});}catch(e){if(e.name!=='AbortError')copyText(audienceUrl());}}else copyText(audienceUrl());});async function copyText(text,input){try{await navigator.clipboard.writeText(text);toast('链接已复制');}catch{if(input){input.focus();input.select();try{if(!document.execCommand('copy'))throw Error();toast('链接已复制');}catch{toast('请选中链接后手动复制');}}else toast('请在分享面板中复制链接');}}
+$$('[data-copy]').forEach(b=>b.addEventListener('click',()=>{const input=$('#'+b.dataset.copy);copyText(input.value,input);}));
+function openLink(url){const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove();}
+$('#open-audience').addEventListener('click',()=>room?openLink(audienceUrl()):toast('请等待同步房间连接'));$('#open-output').addEventListener('click',()=>room?openLink(outputUrl()):toast('请等待同步房间连接'));function showObs(){if(!room||!connected)return toast('请先连接同步房间');$('#obs-link').value=outputUrl();$('#obs-preview').src=outputUrl();openDialog('#obs-dialog');}$('#export-obs').addEventListener('click',showObs);$('#obs-transparent').addEventListener('change',()=>{$('#obs-link').value=outputUrl();$('#obs-preview').src=outputUrl();});$('#open-obs-window').addEventListener('click',()=>openLink(outputUrl()));$('#obs-dialog').addEventListener('close',()=>$('#obs-preview').removeAttribute('src'));
+function showSpecs(){const p=catalog[state.product];$('#specs-title').textContent=p.name;$('#specs-list').replaceChildren();for(const[k,v]of Object.entries(p.specs)){const div=document.createElement('div'),dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=k;dd.textContent=v;div.append(dt,dd);$('#specs-list').appendChild(div);}openDialog('#specs-dialog');}$('#show-specs').addEventListener('click',showSpecs);$('#nav-guide').addEventListener('click',()=>openDialog('#guide-dialog'));$('#nav-studio').addEventListener('click',()=>$('.sessionbar').scrollIntoView({behavior:'smooth'}));['#nav-assets','#open-import','#upload-card'].forEach(sel=>$(sel).addEventListener('click',()=>openDialog('#import-dialog')));
+function allRequests(){return events.flatMap(e=>(e.requests||[]).map(r=>({...r,client:e.client})));}function renderEvents(){const all=allRequests(),pending=all.filter(r=>!state.handled.includes(r.id));$('#pending-count').textContent=String(pending.length);$('#metric-requests').textContent=String(all.length);$('#metric-favorites').textContent=String(events.reduce((n,e)=>n+(e.favorites?Object.values(e.favorites).filter(Boolean).length:e.favorite?1:0),0));$('#requests-empty').hidden=!!pending.length;const groups=new Map();for(const r of pending){if(!groups.has(r.type))groups.set(r.type,[]);groups.get(r.type).push(r);}$('#request-list').replaceChildren();for(const[type,rs]of [...groups].sort((a,b)=>b[1].length-a[1].length)){const row=document.createElement('div');row.className='request-row';const icon=document.createElement('span');icon.className='request-icon';icon.textContent=type==='detail'?'+':'↻';const text=document.createElement('span'),strong=document.createElement('strong'),small=document.createElement('small');strong.textContent='想看商品'+angleLabels[type];small.textContent=`最近请求 · 观众 ${rs[rs.length-1].client.slice(0,4).toUpperCase()}`;text.append(strong,small);const n=document.createElement('span');n.className='request-total';n.textContent='× '+rs.length;const accept=document.createElement('button');accept.textContent='采纳展示';accept.addEventListener('click',()=>{if(!requireReady())return;stopStory();if(type==='detail')chooseMode('detail');else if(type==='material'){setState({mode:'detail',background:'dark',activeHotspot:0,hotspots:true,auto:false});scene.focus(0);}else{setState({mode:'panorama',auto:false,activeHotspot:-1});scene.angle(type);}setState({handled:[...state.handled,...rs.map(r=>r.id)].slice(-200)});renderEvents();toast('已采纳观众请求：查看'+angleLabels[type]);});row.append(icon,text,n,accept);$('#request-list').appendChild(row);}
+const votes=Object.fromEntries(Object.keys(angleLabels).slice(0,6).map(k=>[k,events.filter(e=>e.vote===k).length])),max=Math.max(1,...Object.values(votes));$('#vote-bars').replaceChildren();for(const[type,n]of Object.entries(votes)){const div=document.createElement('div');div.className='vote-item';const label=document.createElement('button');label.textContent=angleLabels[type];label.title='展示'+angleLabels[type];label.onclick=()=>{if(requireReady()){scene.angle(type);setState({mode:'panorama',auto:false});toast('已展示投票视角：'+angleLabels[type]);}};const track=document.createElement('span');track.className='vote-track';const bar=document.createElement('span');bar.style.width=`${n/max*100}%`;track.appendChild(bar);const count=document.createElement('span');count.textContent=String(n);div.append(label,track,count);$('#vote-bars').appendChild(div);}}
+$$('[data-interaction-tab]').forEach(b=>b.addEventListener('click',()=>{$$('[data-interaction-tab]').forEach(t=>t.classList.toggle('active',t===b));$('#request-panel').hidden=b.dataset.interactionTab!=='requests';$('#vote-panel').hidden=b.dataset.interactionTab!=='votes';}));$('#clear-requests').addEventListener('click',()=>{setState({handled:allRequests().map(r=>r.id).slice(-200)});renderEvents();toast('当前请求已标记为已处理');});renderEvents();
+async function sendInteraction(type,value){if(!room||!connected)return toast('主播尚未连接，请稍后再试');if(Date.now()-lastInteraction<1300)return toast('请求已收到，请稍候再操作');lastInteraction=Date.now();try{const d=await api(roomPath('event'),{method:'POST',body:{client,type,value,product:state.product}});if(type==='vote'){$$('[data-vote]').forEach(b=>b.classList.toggle('active',b.dataset.vote===value));$('#vote-feedback').textContent='你已投票：'+angleLabels[value];safeSet('aura.vote.'+room,value);toast('投票已提交给主播');}else if(type==='favorite'){$('#favorite-product').classList.toggle('active',d.event.favorite);$('#favorite-product span').textContent=d.event.favorite?'已收藏当前商品':'收藏当前商品';safeSet('aura.favorite.'+room,String(d.event.favorite));toast(d.event.favorite?'已收藏商品':'已取消收藏');}else toast('已向主播请求：查看'+angleLabels[type]);}catch(e){toast(e.message);}}
+$$('[data-request]').forEach(b=>b.addEventListener('click',()=>sendInteraction(b.dataset.request)));$$('[data-vote]').forEach(b=>{b.addEventListener('click',()=>sendInteraction('vote',b.dataset.vote));if(safeGet('aura.vote.'+room)===b.dataset.vote)b.classList.add('active');});$('#favorite-product').addEventListener('click',()=>sendInteraction('favorite'));if(safeGet('aura.favorite.'+room)==='true'){$('#favorite-product').classList.add('active');$('#favorite-product span').textContent='已收藏当前商品';}
+$('#model-file').addEventListener('change',async e=>{if(!scene.renderer){$('#import-status').textContent='当前浏览器无法启动三维渲染';return;}const files=[...e.target.files],main=files.find(f=>/\.(glb|gltf)$/i.test(f.name));if(!main){$('#import-status').textContent='请选择一个 GLB 或 GLTF 文件';return;}if(files.reduce((n,f)=>n+f.size,0)>30*1024*1024){$('#import-status').textContent='文件合计不能超过 30 MB';return;}$('#import-status').textContent='正在验证模型…';const urls=new Map(files.map(f=>[f.name,URL.createObjectURL(f)]));try{const bytes=await main.arrayBuffer(),manager=new T.LoadingManager();manager.setURLModifier(url=>{const key=decodeURIComponent(url.split('/').pop().split('?')[0]);if(urls.has(key))return urls.get(key);if(/^data:|^blob:/.test(url))return url;throw Error('缺少模型关联文件');});const g=await new GLTFLoader(manager).parseAsync(bytes,'');let meshes=0;g.scene.traverse(o=>{if(o.isMesh)meshes++;});if(!meshes)throw Error('模型没有可展示的网格');const isGLB=/\.glb$/i.test(main.name);if(isGLB){if(!room||!cloudReady)throw Error('请先连接同步房间再上传 GLB');$('#import-status').textContent='正在上传模型到当前房间…';await api(roomPath('model'),{method:'PUT',body:bytes,auth:true,binary:true});localOnly=false;customUrl=null;scene.dispose(g.scene);setState({product:'custom',modelVersion:Date.now(),mode:'panorama',auto:false,activeHotspot:-1,switches:state.switches+1});toast('GLB 已载入，正在同步到 OBS 与观众');}else{localOnly=true;customUrl='local-gltf';const localVersion=Date.now();scene.modelKey='custom:'+localVersion;scene.loadId++;setState({product:'custom',modelVersion:localVersion,mode:'panorama',auto:false,activeHotspot:-1});scene.install(g.scene,'custom');connection(true,'GLTF 仅本地预览');toast('GLTF 已在本机载入，OBS 保留上一商品画面');}catalog.custom.name=main.name.replace(/\.(glb|gltf)$/i,'').slice(0,30);$('#custom-title').textContent=catalog.custom.name;$('#custom-card').hidden=false;$('#product-count').textContent='03';updateUI();scene.move(DEFAULT_CAMERA,DEFAULT_TARGET);$('#import-status').textContent='';$('#import-dialog').close();}catch(e){$('#import-status').textContent='导入失败：'+e.message;}finally{urls.forEach(url=>URL.revokeObjectURL(url));}});
+async function ensureCamera(){if(cameraStream)return cameraStream;if(!navigator.mediaDevices?.getUserMedia)throw Error('当前浏览器不支持摄像头，请使用 HTTPS 现代浏览器');cameraStream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:480},facingMode:'user'},audio:false});$('#presenter-video').srcObject=cameraStream;await $('#presenter-video').play();$('#camera-placeholder').hidden=true;return cameraStream;}
+$('#enable-camera').addEventListener('click',async()=>{try{await ensureCamera();toast('本地摄像头已开启，视频不会上传');}catch(e){toast('无法开启摄像头，请检查浏览器权限与设备占用');}});
+function stopGestures(){gestureStop?.();gestureStop=null;cameraStream?.getTracks().forEach(t=>t.stop());cameraStream=null;$('#presenter-video').srcObject=null;$('#camera-placeholder').hidden=false;$('#gesture-settings').hidden=true;$('#enable-gesture span').textContent='开启手势控播';$('#enable-gesture').setAttribute('aria-pressed','false');toast('手势识别与摄像头已关闭');}
+$('#enable-gesture').addEventListener('click',()=>{if(gestureStop)stopGestures();else openDialog('#gesture-dialog');});$('#gesture-info').addEventListener('click',()=>openDialog('#gesture-dialog'));
+$('#confirm-gesture').addEventListener('click',async()=>{if(gestureStop)return toast('手势识别已经开启');if(gestureLoading)return;gestureLoading=true;$('#confirm-gesture').disabled=true;$('#confirm-gesture').textContent='正在准备摄像头与识别资源…';try{await ensureCamera();$('#gesture-dialog').close();$('#gesture-settings').hidden=false;$('#gesture-status').textContent='正在加载手部识别模型…';const gesturePath='/assets/gestures.js';const {startGestures}=await import(gesturePath);gestureStop=await startGestures($('#presenter-video'),{onRotate:delta=>{if(state.status!=='paused'){scene.rotate(delta/.35);}},onZoom:factor=>{if(state.status!=='paused')scene.zoom(factor);},onPause:()=>setState({auto:false}),onStatus:text=>$('#gesture-status').textContent=text,sensitivity:()=>Number($('#sensitivity').value)});$('#enable-gesture span').textContent='关闭手势与摄像头';$('#enable-gesture').setAttribute('aria-pressed','true');toast('手势控播已开启');}catch(e){stopGestures();toast('手势识别未能启动：请检查摄像头权限与识别资源网络连接');console.warn('Gesture setup failed',e);}finally{gestureLoading=false;$('#confirm-gesture').disabled=false;$('#confirm-gesture').textContent='授权摄像头并开启识别';}});
+window.addEventListener('pagehide',()=>{gestureStop?.();cameraStream?.getTracks().forEach(t=>t.stop());});
+
+
+
+04 三维场景与模型控制
+work/studio/scene.js
+Three.js 渲染、PBR 材质、相机、热点、拆解与多商品展示。
+import * as T from 'three';import{OrbitControls}from'three/addons/controls/OrbitControls.js';import{GLTFLoader}from'three/addons/loaders/GLTFLoader.js';import{RoomEnvironment}from'three/addons/environments/RoomEnvironment.js';
+export const DEFAULT_CAMERA=[3.1,1.6,5.6],DEFAULT_TARGET=[0,.34,0];
+export const points={aura:[{p:[1.31,-.4,.12],normal:[1,0,0],tag:'01 / MATERIAL',title:'温润金属，细腻光泽',desc:'金属耳罩与柔和色相相互呼应。转动视角，观察物理材质在不同光线下的真实反射。'},{p:[.1,1.94,.10],normal:[0,1,.2],tag:'02 / COMFORT',title:'一体弧线，轻柔承托',desc:'连续弧形头梁与内侧软垫，让简洁轮廓呈现结构层次。拆解模式可以进一步观察部件关系。'},{p:[-.8,-.4,.42],normal:[.8,0,.8],tag:'03 / DETAIL',title:'柔软耳垫，环绕包裹',desc:'椭圆耳垫环绕内侧网面。切换特写或侧面视角，探索耳罩、软垫与连接件的构成。'}],lune:[{p:[.6,.4,.4],normal:[0,1,.2],tag:'01 / CRAFT',title:'深松绿，映衬月色金',desc:'哑光盒体搭配细窄金属色边线，以克制的色彩关系呈现礼盒的仪式感。'},{p:[0,.84,.04],normal:[0,1,.2],tag:'02 / STRUCTURE',title:'弧形提手，轻巧提携',desc:'顶部弧形提手与盒盖连为一个展示部件。切换结构拆解，观察提手、盒盖与内衬的层次。'},{p:[.61,.08,.1],normal:[0,1,.4],tag:'03 / INSIDE',title:'双罐内托，有序安放',desc:'盒内配置两只概念茶罐与柔软内托。结构拆解后，盒盖抬起，展示内部空间与部件关系。'}]};
+const palettes={aura:{sand:{shell:0xe6e1d5,metal:0xa98c6b,cushion:0xe8e2d8},ink:{shell:0x353b3a,metal:0x4c5553,cushion:0x292e2b},sage:{shell:0xa6af99,metal:0x78866a,cushion:0xc3c7b5}},lune:{sand:{shell:0x77694f,metal:0xc5a975,cushion:0xe0d5b6},ink:{shell:0x292e2a,metal:0x9c9d8a,cushion:0x787c6b},sage:{shell:0x2e4a40,metal:0xba9e65,cushion:0xdecfb4}}};
+export class ProductScene{
+constructor(stage,{onChange,onReady,onError,follower=false,onHotspot}={}){this.stage=stage;this.wrap=stage.querySelector('#canvas-wrap');this.onChange=onChange;this.onReady=onReady;this.onError=onError;this.onHotspot=onHotspot;this.follower=follower;this.model=null;this.other=null;this.state={};this.loadId=0;this.tween=null;this.explode=0;this.ready=false;this.resize=this.resize.bind(this);try{this.renderer=new T.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});}catch(e){this.onError?.('无法开启 WebGL，请使用支持硬件加速的现代浏览器。');return;}const r=this.renderer;r.setPixelRatio(Math.min(devicePixelRatio,1.7));r.outputColorSpace=T.SRGBColorSpace;r.toneMapping=T.ACESFilmicToneMapping;r.toneMappingExposure=1.05;r.shadowMap.enabled=true;r.shadowMap.type=T.PCFSoftShadowMap;this.wrap.appendChild(r.domElement);r.domElement.tabIndex=follower?-1:0;r.domElement.setAttribute('aria-label','真实商品三维模型，可拖动旋转、滚轮与双指缩放');this.scene=new T.Scene();this.camera=new T.PerspectiveCamera(37,1,.05,70);this.camera.position.fromArray(DEFAULT_CAMERA);this.controls=new OrbitControls(this.camera,r.domElement);const c=this.controls;c.target.fromArray(DEFAULT_TARGET);c.enableDamping=true;c.dampingFactor=.08;c.enablePan=false;c.minDistance=2.7;c.maxDistance=11;c.minPolarAngle=.012;c.maxPolarAngle=Math.PI-.012;c.autoRotateSpeed=.65;c.rotateSpeed=.55;c.zoomSpeed=.65;c.enabled=!follower;c.update();c.addEventListener('start',()=>{this.tween=null;c.autoRotate=false;this.state.auto=false;this.emit({auto:false,angle:'free'});});c.addEventListener('change',()=>{if(!this.follower)this.emit({camera:this.camera.position.toArray(),target:c.target.toArray()});});
+const pmrem=new T.PMREMGenerator(r),room=new RoomEnvironment();this.scene.environment=pmrem.fromScene(room,.04).texture;room.dispose();pmrem.dispose();this.scene.add(new T.HemisphereLight(0xfff9e9,0xa0a28d,2.2));const key=new T.DirectionalLight(0xfff6e9,3.8);key.position.set(-3,6,5);key.castShadow=true;key.shadow.mapSize.set(1024,1024);Object.assign(key.shadow.camera,{left:-4,right:4,top:4,bottom:-4});key.shadow.normalBias=.025;key.shadow.bias=-.0001;key.shadow.radius=5;this.scene.add(key);const fill=new T.DirectionalLight(0xf2f6ff,1.9);fill.position.set(4,1,-3);this.scene.add(fill);this.ground=new T.Mesh(new T.PlaneGeometry(100,100),new T.ShadowMaterial({opacity:.09}));this.ground.rotation.x=-Math.PI/2;this.ground.position.y=-1.25;this.ground.receiveShadow=true;this.scene.add(this.ground);
+const ca=document.createElement('canvas');ca.width=128;ca.height=128;const ctx=ca.getContext('2d'),grad=ctx.createRadialGradient(64,64,2,64,64,64);grad.addColorStop(0,'rgba(75,75,55,.19)');grad.addColorStop(1,'rgba(75,75,55,0)');ctx.fillStyle=grad;ctx.fillRect(0,0,128,128);this.softShadow=new T.Mesh(new T.PlaneGeometry(4.2,3),new T.MeshBasicMaterial({map:new T.CanvasTexture(ca),transparent:true,depthWrite:false}));this.softShadow.rotation.x=-Math.PI/2;this.softShadow.position.y=-1.24;this.scene.add(this.softShadow);
+this.hotspotButtons=[0,1,2].map(i=>{const b=document.createElement('button');b.className='hotspot';b.textContent='+';b.addEventListener('click',()=>{if(!this.follower)this.onHotspot?.(i);});b.tabIndex=follower?-1:0;stage.querySelector('#hotspots').appendChild(b);return b;});new ResizeObserver(this.resize).observe(stage);this.resize();r.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();this.onError?.('渲染已暂停，请刷新页面恢复。');});this.clock=new T.Clock();this.tick();}
+emit(patch){this.onChange?.(patch);}
+resize(){if(!this.renderer)return;const w=this.wrap.clientWidth,h=this.wrap.clientHeight;if(!w||!h)return;this.camera.aspect=w/h;this.camera.updateProjectionMatrix();this.renderer.setSize(w,h);}
+async load(product,url){if(!this.renderer)return;const id=++this.loadId;this.ready=false;this.stage.querySelector('#loading').hidden=false;this.stage.querySelector('#load-text').textContent='正在加载三维模型 · 0%';try{const g=await new GLTFLoader().loadAsync(url,e=>{if(e.total&&id===this.loadId)this.stage.querySelector('#load-text').textContent=`正在加载三维模型 · ${Math.round(e.loaded/e.total*100)}%`;});if(id!==this.loadId){this.dispose(g.scene);return;}this.install(g.scene,product);this.onReady?.();}catch(e){if(id===this.loadId){this.onError?.('模型加载失败，请检查网络，或重新选择商品。');this.stage.querySelector('#load-text').textContent='模型加载失败，请重新选择商品';}console.warn('GLB load failed',e);}}
+install(root,product){if(this.model){this.scene.remove(this.model);this.dispose(this.model);}if(this.other){this.scene.remove(this.other);this.dispose(this.other);this.other=null;}if(product==='custom'){root.updateMatrixWorld(true);const b=new T.Box3().setFromObject(root),size=b.getSize(new T.Vector3()),center=b.getCenter(new T.Vector3()),wrapper=new T.Group();root.position.sub(center);wrapper.add(root);wrapper.scale.setScalar(3.15/Math.max(size.x,size.y,size.z,.001));wrapper.position.y=.34;root=wrapper;}root.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});root.userData.restPosition=root.position.clone();root.userData.restScale=root.scale.clone();const structure=root.getObjectByName(product==='lune'?'LUNE_Gift_Box':'AURA_One');this.parts=structure?.children||[];this.parts.forEach(o=>o.userData.rest=o.position.clone());this.model=root;this.product=product;this.scene.add(root);this.ready=true;this.stage.querySelector('#loading').hidden=true;this.color();this.layout();}
+dispose(m){const geos=new Set(),mats=new Set();m.traverse(o=>{if(o.isMesh){geos.add(o.geometry);(Array.isArray(o.material)?o.material:[o.material]).forEach(mat=>mats.add(mat));}});geos.forEach(g=>g.dispose());mats.forEach(m=>{Object.values(m).forEach(v=>{if(v?.isTexture)v.dispose();});m.dispose();});}
+async compare(){if(this.other||this.loadingOther||!this.model)return;this.loadingOther=true;const product=this.product,loadId=this.loadId;try{const g=await new GLTFLoader().loadAsync(product==='aura'?'/assets/lune-box.glb':'/assets/aura-one.glb');if(this.state.mode!=='compare'||this.loadId!==loadId){this.dispose(g.scene);return;}this.other=g.scene;this.other.scale.setScalar(.67);this.other.position.set(1.15,.12,0);this.scene.add(this.other);}catch(e){this.onError?.('对比模型加载失败，请稍后重试。');}finally{this.loadingOther=false;}}
+layout(){if(!this.model)return;const compare=this.state.mode==='compare';this.model.position.copy(this.model.userData.restPosition);this.model.scale.copy(this.model.userData.restScale);if(compare){this.model.scale.multiplyScalar(.65);this.model.position.x-=1.1;this.compare();}else if(this.other){this.scene.remove(this.other);this.dispose(this.other);this.other=null;}this.stage.querySelector('#camera-panel').hidden=this.state.mode!=='presenter';this.resize();}
+color(){if(!this.model||this.product==='custom')return;const values=palettes[this.product]?.[this.state.color||'sand'];if(!values)return;this.model.traverse(o=>{if(o.isMesh)(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{if(values[m.name]!==undefined)m.color.setHex(values[m.name]);});});}
+apply(s,{remote=false,url}={}){const old=this.state;this.state={...s};if(!this.renderer)return;const key=s.product+':'+(s.modelVersion||0);if(key!==this.modelKey){this.modelKey=key;this.load(s.product,url);}if(old.color!==s.color)this.color();if(old.mode!==s.mode)this.layout();this.stage.classList.toggle('dark',s.background==='dark');this.stage.classList.toggle('transparent',s.background==='transparent');this.ground.visible=s.background!=='transparent';this.softShadow.visible=s.background!=='transparent';this.controls.autoRotate=!this.follower&&s.auto&&s.status!=='paused'&&s.status!=='ended';this.controls.autoRotateSpeed=.65*(s.autoDirection||1);this.controls.enabled=!this.follower&&s.status!=='paused';if(remote){this.tween={from:this.camera.position.clone(),to:new T.Vector3().fromArray(s.camera||DEFAULT_CAMERA),targetFrom:this.controls.target.clone(),targetTo:new T.Vector3().fromArray(s.target||DEFAULT_TARGET),start:performance.now(),duration:950};}this.stage.querySelector('#paused-overlay').hidden=s.status!=='paused';this.showCard();}
+showCard(){const h=points[this.state.product]?.[this.state.activeHotspot],card=this.stage.querySelector('#hotspot-card');if(!h||!this.state.hotspots||this.state.product==='custom'){card.hidden=true;return;}card.hidden=false;this.stage.querySelector('#hotspot-tag').textContent=h.tag;this.stage.querySelector('#hotspot-title').textContent=h.title;this.stage.querySelector('#hotspot-desc').textContent=h.desc;}
+move(position,target=DEFAULT_TARGET,duration=650){if(!this.renderer)return;this.controls.autoRotate=false;this.tween={from:this.camera.position.clone(),to:new T.Vector3().fromArray(position),targetFrom:this.controls.target.clone(),targetTo:new T.Vector3().fromArray(target),start:performance.now(),duration};this.emit({auto:false});}
+angle(name){const t=new T.Vector3().fromArray(DEFAULT_TARGET),d=6.1;const positions={front:[0,.34,d],back:[0,.34,-d],left:[-d,.34,.001],right:[d,.34,.001],top:[0,d+.34,.01],bottom:[0,.34-d,.01],free:DEFAULT_CAMERA};this.move(positions[name]||DEFAULT_CAMERA,t.toArray());this.emit({angle:name,activeHotspot:-1});}
+zoom(f){if(!this.renderer)return;const dir=this.camera.position.clone().sub(this.controls.target),dist=T.MathUtils.clamp(dir.length()*f,this.controls.minDistance,this.controls.maxDistance);this.move(this.controls.target.clone().add(dir.normalize().multiplyScalar(dist)).toArray(),this.controls.target.toArray());}
+rotate(direction){if(!this.renderer)return;const sphere=new T.Spherical().setFromVector3(this.camera.position.clone().sub(this.controls.target));sphere.theta+=direction*.35;this.move(new T.Vector3().setFromSpherical(sphere).add(this.controls.target).toArray(),this.controls.target.toArray());}
+focus(index=0){const p=points[this.product]?.[index];if(!p)return;const t=new T.Vector3().fromArray(p.p);this.move(t.clone().add(new T.Vector3(1.3,.7,2.5)).toArray(),t.toArray());this.emit({activeHotspot:index,hotspots:true,auto:false});}
+tick=()=>{requestAnimationFrame(this.tick);const dt=Math.min(this.clock.getDelta(),.05);if(this.tween){const t=Math.min((performance.now()-this.tween.start)/this.tween.duration,1),k=1-Math.pow(1-t,3);this.camera.position.lerpVectors(this.tween.from,this.tween.to,k);this.controls.target.lerpVectors(this.tween.targetFrom,this.tween.targetTo,k);if(t===1)this.tween=null;}this.controls.update(dt);const wanted=this.state.mode==='explode'?1:0;this.explode+=(wanted-this.explode)*Math.min(dt*7,1);if(this.model&&this.product!=='custom'){for(const o of this.parts||[]){const rest=o.userData.rest;if(!rest)continue;o.position.copy(rest);if(this.product==='lune'){if(o.name==='box_lid')o.position.y+=1.3*this.explode;if(o.name==='box_contents')o.position.y+=.48*this.explode;}else{if(!o.isMesh&&o.children.length){o.position.x+=Math.sign(rest.x)*.65*this.explode;o.position.y-=.07*this.explode;}else o.position.y+=.35*this.explode;}}}this.renderer.render(this.scene,this.camera);const hs=points[this.product]||[];this.hotspotButtons.forEach((b,i)=>{const h=hs[i];if(!this.ready||!h||!this.state.hotspots||['compare','presenter'].includes(this.state.mode)){b.hidden=true;return;}const pos=new T.Vector3().fromArray(h.p);if(this.state.mode==='explode'){if(this.product==='lune')pos.y+=i===2?.48:1.3;else if(i===0)pos.x+=.65;else if(i===1)pos.y+=.35;}const projected=pos.clone().project(this.camera),facing=new T.Vector3().fromArray(h.normal).dot(this.camera.position.clone().sub(pos).normalize());b.hidden=projected.z>=1||Math.abs(projected.x)>.93||Math.abs(projected.y)>.9||facing<-.2;if(!b.hidden){b.style.left=`${(projected.x*.5+.5)*this.wrap.clientWidth}px`;b.style.top=`${(-projected.y*.5+.5)*this.wrap.clientHeight}px`;b.setAttribute('aria-label',h.title);b.classList.toggle('active',this.state.activeHotspot===i);}});};
+}
+
+
+
+05 摄像头手势识别
+work/studio/gestures.js
+MediaPipe 手部识别、旋转、缩放、握拳暂停与灵敏度。
+import{FilesetResolver,HandLandmarker}from'@mediapipe/tasks-vision';
+export async function startGestures(video,{onRotate,onZoom,onPause,onStatus,sensitivity=()=>3}){
+const files=await FilesetResolver.forVisionTasks('/vision');let landmarker;try{landmarker=await HandLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:'/vision/hand.task',delegate:'GPU'},runningMode:'VIDEO',numHands:2,minHandDetectionConfidence:.65,minHandPresenceConfidence:.65,minTrackingConfidence:.65});}catch{landmarker=await HandLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:'/vision/hand.task',delegate:'CPU'},runningMode:'VIDEO',numHands:2,minHandDetectionConfidence:.65});}
+let active=true,lastTime=-1,lastX=null,lastPinch=null,lastSpan=null,lastAt=0,pauseAt=0;
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);function tick(now){if(!active)return;requestAnimationFrame(tick);if(video.readyState<2||video.currentTime===lastTime||now-lastAt<65)return;lastTime=video.currentTime;lastAt=now;try{const result=landmarker.detectForVideo(video,now),hands=result.landmarks;if(!hands.length){lastX=lastPinch=lastSpan=null;onStatus('将手掌放在摄像头可见范围内');return;}const h=hands[0],palm=dist(h[0],h[9]),pinch=dist(h[4],h[8])/Math.max(palm,.02);const extended=[8,12,16,20].filter(i=>dist(h[i],h[0])>dist(h[i-2],h[0])*1.15).length;const gain=Number(sensitivity())/3;
+if(hands.length===2){const span=dist(hands[0][0],hands[1][0]);if(lastSpan!==null&&Math.abs(span-lastSpan)>.005)onZoom(Math.exp((span-lastSpan)*gain*2.5));lastSpan=span;lastX=lastPinch=null;onStatus('双手展开 · 调节观察距离');return;}lastSpan=null;
+if(extended===0&&pinch>.35){if(now-pauseAt>1200){onPause();pauseAt=now;}onStatus('握拳 · 已停止自动旋转');lastX=lastPinch=null;return;}
+if(pinch<.85){if(lastPinch!==null&&Math.abs(pinch-lastPinch)>.008)onZoom(Math.exp(-(pinch-lastPinch)*gain*.75));lastPinch=pinch;lastX=null;onStatus('捏合 · 缩放商品');return;}lastPinch=null;
+if(extended>=3){if(lastX!==null&&Math.abs(h[9].x-lastX)>.002)onRotate(-(h[9].x-lastX)*gain*4);lastX=h[9].x;onStatus('张掌横移 · 旋转商品');}else{lastX=null;onStatus('识别中 · 张掌或捏合进行控制');}
+}catch(e){onStatus('识别暂时中断，请调整光线与手部位置');}}
+requestAnimationFrame(tick);return()=>{active=false;landmarker.close();};}
+
+
+
+06 服务端与同步接口
+worker/index.js
+Cloudflare Worker 路由、R2 存储、权限校验、状态同步、互动与模型上传。
+import {assets} from './assets.generated.js';
+const json=(d,status=200)=>Response.json(d,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
+const cleanState=s=>{const out={};out.product=['aura','lune','custom'].includes(s.product)?s.product:'aura';out.modelVersion=Math.max(0,Math.min(Number(s.modelVersion)||0,9999999999999));out.color=['sand','ink','sage'].includes(s.color)?s.color:'sand';out.mode=['panorama','presenter','detail','compare','explode'].includes(s.mode)?s.mode:'panorama';out.background=['warm','dark','transparent'].includes(s.background)?s.background:'warm';out.status=['rehearsal','live','paused','ended'].includes(s.status)?s.status:'rehearsal';out.hotspots=!!s.hotspots;out.activeHotspot=Number.isInteger(s.activeHotspot)&&s.activeHotspot>=-1&&s.activeHotspot<3?s.activeHotspot:-1;out.auto=!!s.auto;out.autoDirection=s.autoDirection===-1?-1:1;out.angle=String(s.angle||'free').slice(0,20);out.camera=Array.isArray(s.camera)&&s.camera.length===3&&s.camera.every(n=>Number.isFinite(n)&&Math.abs(n)<30)?s.camera:[3.1,1.6,5.6];out.target=Array.isArray(s.target)&&s.target.length===3&&s.target.every(n=>Number.isFinite(n)&&Math.abs(n)<10)?s.target:[0,.34,0];out.switches=Math.min(Math.max(Number(s.switches)||0,0),100000);out.startedAt=Number(s.startedAt)||null;out.elapsed=Math.min(Math.max(Number(s.elapsed)||0,0),86400000);out.handled=Array.isArray(s.handled)?s.handled.filter(v=>typeof v==='string').slice(-200):[];out.productSeconds=s.productSeconds&&typeof s.productSeconds==='object'?Object.fromEntries(['aura','lune','custom'].map(k=>[k,Math.max(0,Math.min(86400,Number(s.productSeconds[k])||0))])):{};return out;};
+const sha=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(v=>v.toString(16).padStart(2,'0')).join('');
+const read=async(bucket,key)=>{const o=await bucket.get(key);return o?o.json():null;};
+export default{async fetch(req,env){const u=new URL(req.url),p=u.pathname;try{
+if(p.startsWith('/vision/')){const files={'/vision/hand.task':'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task','/vision/vision_wasm_internal.wasm':'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/wasm/vision_wasm_internal.wasm','/vision/vision_wasm_internal.js':'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/wasm/vision_wasm_internal.js','/vision/vision_wasm_nosimd_internal.wasm':'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/wasm/vision_wasm_nosimd_internal.wasm','/vision/vision_wasm_nosimd_internal.js':'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/wasm/vision_wasm_nosimd_internal.js'};if(!files[p])return json({error:'未找到识别资源'},404);const r=await fetch(files[p]);return new Response(r.body,{status:r.status,headers:{'Content-Type':p.endsWith('.wasm')?'application/wasm':p.endsWith('.js')?'application/javascript':'application/octet-stream','Cache-Control':'public,max-age=604800'}});}
+if(p.startsWith('/api/')){
+const bucket=env.BUCKET;if(!bucket)return json({error:'云端同步存储未就绪，请稍后重试。'},503);
+if(p==='/api/rooms'&&req.method==='POST'){const id=crypto.randomUUID(),token=crypto.randomUUID()+crypto.randomUUID();const createdAt=Date.now();await bucket.put(`rooms/${id}/config`,JSON.stringify({id,tokenHash:await sha(token),createdAt}));return json({id,token,createdAt},201);}
+const m=p.match(/^\/api\/rooms\/([a-f0-9-]{36})\/(state|events|event|model)$/);if(!m)return json({error:'接口不存在'},404);const[,id,action]=m;const config=await read(bucket,`rooms/${id}/config`);if(!config)return json({error:'直播间不存在，请检查链接。'},404);if(Date.now()-config.createdAt>86400000)return json({error:'该演示直播间已过期，请创建新的直播间。'},410);
+const auth=async()=>{const token=(req.headers.get('Authorization')||'').replace(/^Bearer /,'');return token.length>20&&await sha(token)===config.tokenHash;};
+if(action==='state'&&req.method==='GET')return json({state:await read(bucket,`rooms/${id}/state`),createdAt:config.createdAt,serverTime:Date.now()});
+if(action==='state'&&req.method==='PUT'){if(!await auth())return json({error:'没有控播权限'},403);if(Number(req.headers.get('Content-Length'))>20000)return json({error:'数据过大'},413);const body=await req.json(),state={...cleanState(body),updatedAt:Date.now()};await bucket.put(`rooms/${id}/state`,JSON.stringify(state));return json({ok:true,updatedAt:state.updatedAt});}
+if(action==='event'&&req.method==='POST'){const body=await req.json();if(!/^[a-zA-Z0-9-]{8,64}$/.test(body.client||''))return json({error:'无效访客标识'},400);if(!['front','back','left','right','top','bottom','detail','material','vote','favorite'].includes(body.type))return json({error:'无效互动'},400);const key=`rooms/${id}/events/${body.client}`,old=await read(bucket,key)||{client:body.client,requests:[],favorite:false,vote:null,updatedAt:0};if(Date.now()-old.updatedAt<1100)return json({error:'操作太快，请稍候再试。'},429);if(body.type==='favorite'){const product=['aura','lune','custom'].includes(body.product)?body.product:'aura';old.favorites=old.favorites||{};old.favorites[product]=!old.favorites[product];old.favorite=old.favorites[product];}else if(body.type==='vote'){if(!['front','back','left','right','top','bottom'].includes(body.value))return json({error:'请选择有效角度'},400);old.vote=body.value;}else old.requests=[...old.requests,{id:crypto.randomUUID(),type:body.type,product:['aura','lune','custom'].includes(body.product)?body.product:'aura',at:Date.now()}].slice(-30);old.updatedAt=Date.now();await bucket.put(key,JSON.stringify(old));return json({ok:true,event:old});}
+if(action==='events'&&req.method==='GET'){if(!await auth())return json({error:'没有控播权限'},403);const list=await bucket.list({prefix:`rooms/${id}/events/`,limit:200});const events=await Promise.all(list.objects.map(o=>read(bucket,o.key)));return json({events:events.filter(Boolean),limited:list.truncated});}
+if(action==='model'&&req.method==='PUT'){if(!await auth())return json({error:'没有控播权限'},403);const bytes=await req.arrayBuffer();if(bytes.byteLength>30*1024*1024)return json({error:'GLB 模型不能超过 30 MB'},413);if(bytes.byteLength<12||new DataView(bytes).getUint32(0,true)!==0x46546c67)return json({error:'请选择有效的 GLB 模型'},400);await bucket.put(`rooms/${id}/model.glb`,bytes,{httpMetadata:{contentType:'model/gltf-binary'}});return json({ok:true});}
+if(action==='model'&&req.method==='GET'){const o=await bucket.get(`rooms/${id}/model.glb`);return o?new Response(o.body,{headers:{'Content-Type':'model/gltf-binary','Cache-Control':'no-store'}}):json({error:'模型未上传'},404);}
+return json({error:'不支持此操作'},405);
+}
+const asset=assets[p==='/'?'/index.html':p];if(!asset)return new Response('Not found',{status:404});const bytes=Uint8Array.from(atob(asset.data),c=>c.charCodeAt(0));return new Response(bytes,{headers:{'Content-Type':asset.type,'Cache-Control':p.endsWith('.glb')?'public,max-age=86400':'no-cache','X-Content-Type-Options':'nosniff'}});
+}catch(e){return json({error:'服务暂时未能完成请求，请稍后重试。'},500);}}};
+
+
+
+07 构建脚本
+work/studio/build.mjs
+构建前端、手势识别模块及可部署的单文件 Worker。
+import{readFile,writeFile,mkdir}from'node:fs/promises';import{build}from'esbuild';
+await build({entryPoints:['work/studio/app.js'],bundle:true,minify:true,format:'esm',outfile:'dist/assets/app.js',target:['es2022'],legalComments:'none'});
+await build({entryPoints:['work/studio/gestures.js'],bundle:true,minify:true,format:'esm',outfile:'dist/assets/gestures.js',target:['es2022'],legalComments:'none'});
+const files={'/index.html':['dist/index.html','text/html;charset=utf-8'],'/assets/app.js':['dist/assets/app.js','application/javascript'],'/assets/gestures.js':['dist/assets/gestures.js','application/javascript'],'/assets/style.css':['dist/assets/style.css','text/css;charset=utf-8'],'/assets/aura-one.glb':['dist/assets/aura-one.glb','model/gltf-binary'],'/assets/lune-box.glb':['dist/assets/lune-box.glb','model/gltf-binary']};
+const assets={};for(const[k,[f,type]]of Object.entries(files))assets[k]={type,data:(await readFile(f)).toString('base64')};await writeFile('worker/assets.generated.js','export const assets='+JSON.stringify(assets)+';');await mkdir('dist/server',{recursive:true});await build({entryPoints:['worker/index.js'],bundle:true,minify:true,format:'esm',outfile:'dist/server/index.js',platform:'browser',target:'es2022',legalComments:'none'});console.log('Studio client and Worker built.');
+
+
+
+08 耳机模型生成
+work/model.mjs
+生成 AURA One 原创概念耳机的真实 GLB 模型。
+import * as T from 'three';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+import {writeFile} from 'node:fs/promises';
+globalThis.FileReader=class {readAsArrayBuffer(b){b.arrayBuffer().then(a=>{this.result=a;this.onloadend?.();});}};
+const model=new T.Group();model.name='AURA_One';
+const cream=new T.MeshStandardMaterial({name:'shell',color:0xe6e1d5,roughness:.29,metalness:.15});
+const bronze=new T.MeshStandardMaterial({name:'metal',color:0xa98c6b,roughness:.26,metalness:.85});
+const leather=new T.MeshStandardMaterial({name:'cushion',color:0xe8e2d8,roughness:.86});
+const inner=new T.MeshStandardMaterial({name:'mesh',color:0x58544d,roughness:1});
+const dark=new T.MeshStandardMaterial({name:'detail',color:0x716451,roughness:.5,metalness:.4});
+function mesh(g,m,p=[0,0,0],parent=model){let o=new T.Mesh(g,m);o.position.set(...p);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o;}
+function arch(outerX,outerY,innerX,innerY,mat,depth,z){const s=new T.Shape();for(let i=0;i<=80;i++){let t=i/80*Math.PI;let x=outerX*Math.cos(t),y=.28+outerY*Math.sin(t);i?s.lineTo(x,y):s.moveTo(x,y);}for(let i=80;i>=0;i--){let t=i/80*Math.PI;s.lineTo(innerX*Math.cos(t),.28+innerY*Math.sin(t));}s.closePath();const g=new T.ExtrudeGeometry(s,{depth,bevelEnabled:true,bevelSegments:4,steps:1,bevelSize:.032,bevelThickness:.03,curveSegments:64});return mesh(g,mat,[0,0,z-depth/2]);}
+arch(1.25,1.63,1.08,1.43,cream,.29,0);
+arch(1.093,1.435,1.045,1.365,leather,.25,0);
+for(let side of [-1,1]){
+const g=new T.Group();g.position.set(side*1.03,-.44,0);g.rotation.z=side*-.11;model.add(g);
+const shell=mesh(new T.SphereGeometry(1,64,48),cream,[0,0,0],g);shell.scale.set(.265,.71,.525);
+const plate=mesh(new T.SphereGeometry(1,64,48),bronze,[side*.18,-.015,0],g);plate.scale.set(.16,.61,.455);
+const disc=mesh(new T.SphereGeometry(1,64,48),bronze,[side*.285,-.015,0],g);disc.scale.set(.075,.53,.40);
+const pad=mesh(new T.TorusGeometry(.385,.115,24,80),leather,[-side*.20,0,.015],g);pad.rotation.y=Math.PI/2;pad.scale.set(1,1.45,1);
+const speaker=mesh(new T.SphereGeometry(1,40,28),inner,[-side*.19,0,0],g);speaker.scale.set(.045,.47,.315);
+for(let i=-4;i<=4;i++){let line=mesh(new T.BoxGeometry(.008,.64,.005),dark,[-side*.237,0,i*.048],g);line.rotation.x=.12;}
+const arm=mesh(new T.BoxGeometry(.12,.65,.18),cream,[-side*.035,.61,.0],g);arm.rotation.z=side*.06;
+mesh(new T.SphereGeometry(.08,24,16),bronze,[side*.02,.36,.0],g).scale.set(.65,1,1);
+for(let k=0;k<3;k++)mesh(new T.SphereGeometry(.018,12,8),dark,[side*.125,-.48,.25+k*.06],g);
+const btn=mesh(new T.CapsuleGeometry(.025,.12,4,12),dark,[side*.20,-.46,.28],g);btn.rotation.x=.5;
+}
+model.userData={product:'AURA One',type:'Original concept demonstration',units:'meters'};
+const data=await new GLTFExporter().parseAsync(model,{binary:true});await writeFile('dist/assets/aura-one.glb',Buffer.from(data));console.log('GLB generated:',data.byteLength,'bytes');
+
+
+
+09 礼盒模型生成
+work/studio/box-model.mjs
+生成 LUNE 月序概念礼盒及可拆解部件。
+import * as T from 'three';import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';import{writeFile}from'node:fs/promises';
+globalThis.FileReader=class{readAsArrayBuffer(b){b.arrayBuffer().then(a=>{this.result=a;this.onloadend?.()})}};
+const root=new T.Group();root.name='LUNE_Gift_Box';const shell=new T.MeshStandardMaterial({name:'shell',color:0x2e4a40,roughness:.68});const metal=new T.MeshStandardMaterial({name:'metal',color:0xba9e65,metalness:.85,roughness:.28});const lining=new T.MeshStandardMaterial({name:'cushion',color:0xdecfb4,roughness:1});const paper=new T.MeshStandardMaterial({name:'paper',color:0xe1dccf,roughness:.9});
+const add=(name,geo,mat,pos,parent=root)=>{const m=new T.Mesh(geo,mat);m.name=name;m.position.set(...pos);parent.add(m);return m;};
+const base=new T.Group();base.name='box_base';root.add(base);add('base_floor',new T.BoxGeometry(2.45,.12,1.78),shell,[0,-.86,0],base);
+for(const s of[-1,1]){add('box_wall',new T.BoxGeometry(.10,.96,1.78),shell,[s*1.175,-.33,0],base);add('box_wall',new T.BoxGeometry(2.34,.96,.10),shell,[0,-.33,s*.84],base);}add('velvet_insert',new T.BoxGeometry(2.18,.13,1.54),lining,[0,-.69,0],base);
+const inside=new T.Group();inside.name='box_contents';root.add(inside);
+for(const x of[-.62,.62]){add('tea_tin',new T.CylinderGeometry(.34,.34,.66,64),paper,[x,-.28,0],inside);add('tin_lid',new T.CylinderGeometry(.355,.355,.06,64),metal,[x,.075,0],inside);add('tin_ring',new T.TorusGeometry(.30,.012,8,60),metal,[x,.115,0],inside).rotation.x=Math.PI/2;}
+const lid=new T.Group();lid.name='box_lid';root.add(lid);add('lid_surface',new T.BoxGeometry(2.56,.16,1.88),shell,[0,.30,0],lid);add('lid_rim',new T.BoxGeometry(2.59,.035,1.91),metal,[0,.23,0],lid);add('lid_top',new T.BoxGeometry(2.46,.018,1.78),shell,[0,.39,0],lid);
+const emblem=add('moon_emblem',new T.TorusGeometry(.24,.012,12,80),metal,[0,.413,0],lid);emblem.rotation.x=Math.PI/2;add('moon_line',new T.BoxGeometry(.6,.008,.012),metal,[0,.418,0],lid);
+const handleCurve=new T.CatmullRomCurve3([new T.Vector3(-.33,.4,0),new T.Vector3(-.29,.76,0),new T.Vector3(0,.85,0),new T.Vector3(.29,.76,0),new T.Vector3(.33,.4,0)]);add('handle',new T.TubeGeometry(handleCurve,48,.022,12,false),metal,[0,0,0],lid);
+const data=await new GLTFExporter().parseAsync(root,{binary:true});await writeFile('dist/assets/lune-box.glb',Buffer.from(data));console.log('Box GLB:',data.byteLength);
+
+
+
+10 本地启动服务
+scripts/local-server.mjs
+Node.js HTTP 服务与本地文件存储适配器。
+import http from 'node:http';
+import { readFile, writeFile, mkdir, readdir, rename } from 'node:fs/promises';
+import { resolve, dirname, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { randomUUID } from 'node:crypto';
+import worker from '../dist/server/index.js';
+
+export class FileBucket {
+  constructor(root) { this.root = resolve(root); }
+  path(key) {
+    const path = resolve(this.root, key);
+    if (!path.startsWith(this.root + sep)) throw new Error('Invalid storage key');
+    return path;
+  }
+  async put(key, value) {
+    const path = this.path(key);
+    await mkdir(dirname(path), { recursive: true });
+    const bytes = typeof value === 'string' ? Buffer.from(value) : Buffer.from(value);
+    const temp = path + '.tmp-' + randomUUID();
+    await writeFile(temp, bytes);
+    await rename(temp, path);
+  }
+  async get(key) {
+    try {
+      const bytes = await readFile(this.path(key));
+      return { json: async () => JSON.parse(bytes.toString('utf8')), body: bytes };
+    } catch (error) {
+      if (error.code === 'ENOENT') return null;
+      throw error;
+    }
+  }
+  async list({ prefix = '', limit = 1000 } = {}) {
+    const keys = [];
+    const walk = async (directory, relative = '') => {
+      let entries;
+      try { entries = await readdir(directory, { withFileTypes: true }); }
+      catch (error) { if (error.code === 'ENOENT') return; throw error; }
+      for (const entry of entries) {
+        const key = relative ? relative + '/' + entry.name : entry.name;
+        if (entry.isDirectory()) await walk(resolve(directory, entry.name), key);
+        else if (!entry.name.includes('.tmp-') && key.startsWith(prefix)) keys.push(key);
+      }
+    };
+    await walk(this.root);
+    keys.sort();
+    return { objects: keys.slice(0, limit).map(key => ({ key })), truncated: keys.length > limit };
+  }
+}
+
+export function createLocalServer({ port = 8080, storage } = {}) {
+  const project = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+  const bucket = new FileBucket(storage || resolve(project, '.local-data'));
+  return http.createServer(async (incoming, outgoing) => {
+    try {
+      const chunks = [];
+      let length = 0;
+      for await (const chunk of incoming) {
+        length += chunk.length;
+        if (length > 32 * 1024 * 1024) {
+          outgoing.writeHead(413, { 'Content-Type': 'text/plain;charset=utf-8' });
+          outgoing.end('文件过大，最多支持 30 MB 的 GLB。');
+          return;
+        }
+        chunks.push(chunk);
+      }
+      const url = new URL(incoming.url, 'http://localhost:' + port);
+      const method = incoming.method || 'GET';
+      const request = new Request(url, {
+        method,
+        headers: incoming.headers,
+        body: ['GET', 'HEAD'].includes(method) ? undefined : Buffer.concat(chunks),
+      });
+      const response = await worker.fetch(request, { BUCKET: bucket }, {});
+      outgoing.writeHead(response.status, Object.fromEntries(response.headers));
+      outgoing.end(method === 'HEAD' ? undefined : Buffer.from(await response.arrayBuffer()));
+    } catch (error) {
+      console.error('Local request failed:', error.message);
+      if (!outgoing.headersSent) outgoing.writeHead(500, { 'Content-Type': 'text/plain;charset=utf-8' });
+      outgoing.end('本地服务暂时无法完成请求，请查看终端。');
+    }
+  });
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const port = Number(process.env.PORT || 8080);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('PORT 必须为 1–65535 的整数');
+  const server = createLocalServer({ port });
+  server.on('error', error => {
+    console.error(error.code === 'EADDRINUSE' ? `端口 ${port} 已被占用，请设置其他 PORT 后重试。` : error.message);
+    process.exitCode = 1;
+  });
+  server.listen(port, '127.0.0.1', () => {
+    console.log(`\n物见 LIVE STUDIO 已启动\n浏览器打开：http://localhost:${port}\n按 Ctrl+C 停止。\n`);
+  });
+}
+
+
+
+11 本地运行检查
+scripts/self-test.mjs
+验证页面、模型、本地持久化、权限及互动流程。
+import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { FileBucket } from './local-server.mjs';
+import worker from '../dist/server/index.js';
+const temporary = await mkdtemp(join(tmpdir(), 'aura-package-check-'));
+try {
+  const env = { BUCKET: new FileBucket(temporary) };
+  const request = (path, method = 'GET', body, token) => worker.fetch(new Request('http://localhost:8080' + path, {
+    method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+  }), env, {});
+  assert.equal((await request('/')).status, 200);
+  assert.equal((await request('/assets/aura-one.glb')).status, 200);
+  assert.equal((await request('/assets/lune-box.glb')).status, 200);
+  const room = await (await request('/api/rooms', 'POST', {})).json();
+  assert.ok(room.id && room.token);
+  const endpoint = '/api/rooms/' + room.id;
+  const state = { product: 'lune', mode: 'explode', color: 'sage', status: 'live', camera: [4, 3, 5], target: [0, .34, 0] };
+  assert.equal((await request(endpoint + '/state', 'PUT', state)).status, 403);
+  assert.equal((await request(endpoint + '/state', 'PUT', state, room.token)).status, 200);
+  assert.deepEqual((await (await request(endpoint + '/state')).json()).state.camera, [4, 3, 5]);
+  assert.equal((await request(endpoint + '/event', 'POST', { client: 'local-test-viewer', type: 'back' })).status, 200);
+  const events = await (await request(endpoint + '/events', 'GET', undefined, room.token)).json();
+  assert.equal(events.events[0].requests[0].type, 'back');
+  const persisted = new FileBucket(temporary);
+  assert.equal((await (await persisted.get('rooms/' + room.id + '/state')).json()).product, 'lune');
+  console.log('通过：页面资源、两款 GLB、本地持久化、控播权限、跨客户端状态和观众互动。');
+} finally { await rm(temporary, { recursive: true, force: true }); }
+
+
+
+12 服务端与模型测试
+work/studio/test.mjs
+验证控播权限、跨客户端状态、请求、投票、收藏及 PBR 模型。
+import assert from'node:assert/strict';import fs from'node:fs/promises';import{GLTFLoader}from'three/addons/loaders/GLTFLoader.js';import worker from'../../worker/index.js';
+class Bucket{constructor(){this.items=new Map();}async put(k,v){this.items.set(k,typeof v==='string'?new TextEncoder().encode(v):new Uint8Array(v));}async get(k){const b=this.items.get(k);if(!b)return null;return{json:async()=>JSON.parse(new TextDecoder().decode(b)),body:b};}async list({prefix,limit}){return{objects:[...this.items.keys()].filter(k=>k.startsWith(prefix)).slice(0,limit).map(key=>({key})),truncated:false};}}
+const env={BUCKET:new Bucket()};let tests=0;async function request(path,{method='GET',body,token,binary=false}={}){const headers={};if(token)headers.Authorization='Bearer '+token;if(body&&!binary)headers['Content-Type']='application/json';return worker.fetch(new Request('https://test.invalid'+path,{method,headers,body:body?(binary?body:JSON.stringify(body)):undefined}),env);}
+const create=await request('/api/rooms',{method:'POST',body:{}});assert.equal(create.status,201);const room=await create.json();assert.ok(room.id&&room.token);tests++;
+const path='/api/rooms/'+room.id;const payload={product:'lune',modelVersion:123,color:'sage',camera:[1,2,3],target:[0,.34,0],status:'live',mode:'explode',auto:true,hotspots:true,activeHotspot:2,switches:2,handled:[],elapsed:2500};
+assert.equal((await request(path+'/state',{method:'PUT',body:payload})).status,403);tests++;
+assert.equal((await request(path+'/state',{method:'PUT',body:payload,token:room.token})).status,200);const output=(await(await request(path+'/state')).json()).state;assert.deepEqual(output.camera,[1,2,3]);assert.equal(output.mode,'explode');assert.equal(output.product,'lune');assert.equal(output.modelVersion,123);tests++;
+assert.equal((await request(path+'/events')).status,403);tests++;
+const client='test-viewer-one';await request(path+'/event',{method:'POST',body:{client,type:'back'}});const records=await(await request(path+'/events',{token:room.token})).json();assert.equal(records.events[0].requests[0].type,'back');assert.deepEqual((await(await request(path+'/state')).json()).state.camera,[1,2,3]);tests++;
+await request(path+'/event',{method:'POST',body:{client:'test-viewer-two',type:'vote',value:'top'}});await request(path+'/event',{method:'POST',body:{client:'test-viewer-three',type:'favorite'}});const ev=(await(await request(path+'/events',{token:room.token})).json()).events;assert.equal(ev.filter(e=>e.vote==='top').length,1);assert.equal(ev.filter(e=>e.favorite).length,1);tests++;
+assert.equal((await request(path+'/event',{method:'POST',body:{client:'bad',type:'vote',value:'top'}})).status,400);assert.equal((await request(path+'/event',{method:'POST',body:{client:'test-invalid-user',type:'vote',value:'hack'}})).status,400);tests++;
+let meshCount=0,triangleCount=0;for(const name of['aura-one','lune-box']){const b=await fs.readFile('dist/assets/'+name+'.glb');assert.equal(b.readUInt32LE(0),0x46546c67);const g=await new GLTFLoader().parseAsync(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength),'');let meshes=0;g.scene.traverse(o=>{if(o.isMesh){assert.ok(o.material.isMeshStandardMaterial);meshes++;triangleCount+=(o.geometry.index?.count??o.geometry.attributes.position.count)/3;}});assert.ok(meshes>10);meshCount+=meshes;tests++;}
+const b=await fs.readFile('dist/assets/lune-box.glb');assert.equal((await request(path+'/model',{method:'PUT',body:b,binary:true})).status,403);assert.equal((await request(path+'/model',{method:'PUT',body:b,binary:true,token:room.token})).status,200);assert.equal((await(await request(path+'/model')).arrayBuffer()).byteLength,b.byteLength);tests++;
+for(const p of['/','/assets/app.js','/assets/gestures.js','/assets/style.css','/assets/aura-one.glb','/assets/lune-box.glb']){const r=await request(p);assert.equal(r.status,200);assert.ok((await r.arrayBuffer()).byteLength>100);tests++;}
+console.log(JSON.stringify({passed:tests,meshCount,triangleCount,checks:['host authorization','cross-client state sync','audience requests without camera takeover','votes and favorites','GLB upload/read','PBR models','served assets']}));
+
+13 项目依赖配置
+package.json
+依赖版本、启动、检查及构建命令。
+{
+  "name": "aura-360",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node work/studio/build.mjs",
+    "check": "node --check work/studio/app.js && node --check worker/index.js",
+    "start": "node scripts/local-server.mjs",
+    "test:local": "node scripts/self-test.mjs"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^0.10.22-rc.20250304",
+    "esbuild": "0.24.2",
+    "lucide": "0.468.0",
+    "qrcode": "1.5.4",
+    "three": "0.170.0"
+  }
+}
+
+14 依赖版本锁定
+package-lock.json
+完整依赖锁文件，用于 npm ci 还原依赖。
+{
+  "name": "aura-360",
+  "lockfileVersion": 3,
+  "requires": true,
+  "packages": {
+    "": {
+      "name": "aura-360",
+      "dependencies": {
+        "@mediapipe/tasks-vision": "^0.10.22-rc.20250304",
+        "esbuild": "0.24.2",
+        "lucide": "0.468.0",
+        "qrcode": "1.5.4",
+        "three": "0.170.0"
+      }
+    },
+    "node_modules/@esbuild/aix-ppc64": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/aix-ppc64/-/aix-ppc64-0.24.2.tgz",
+      "integrity": "sha512-thpVCb/rhxE/BnMLQ7GReQLLN8q9qbHmI55F4489/ByVg2aQaQ6kbcLb6FHkocZzQhxc4gx0sCk0tJkKBFzDhA==",
+      "cpu": [
+        "ppc64"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "aix"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/android-arm": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/android-arm/-/android-arm-0.24.2.tgz",
+      "integrity": "sha512-tmwl4hJkCfNHwFB3nBa8z1Uy3ypZpxqxfTQOcHX+xRByyYgunVbZ9MzUUfb0RxaHIMnbHagwAxuTL+tnNM+1/Q==",
+      "cpu": [
+        "arm"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "android"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/android-arm64": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/android-arm64/-/android-arm64-0.24.2.tgz",
+      "integrity": "sha512-cNLgeqCqV8WxfcTIOeL4OAtSmL8JjcN6m09XIgro1Wi7cF4t/THaWEa7eL5CMoMBdjoHOTh/vwTO/o2TRXIyzg==",
+      "cpu": [
+        "arm64"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "android"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/android-x64": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/android-x64/-/android-x64-0.24.2.tgz",
+      "integrity": "sha512-B6Q0YQDqMx9D7rvIcsXfmJfvUYLoP722bgfBlO5cGvNVb5V/+Y7nhBE3mHV9OpxBf4eAS2S68KZztiPaWq4XYw==",
+      "cpu": [
+        "x64"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "android"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/darwin-arm64": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/darwin-arm64/-/darwin-arm64-0.24.2.tgz",
+      "integrity": "sha512-kj3AnYWc+CekmZnS5IPu9D+HWtUI49hbnyqk0FLEJDbzCIQt7hg7ucF1SQAilhtYpIujfaHr6O0UHlzzSPdOeA==",
+      "cpu": [
+        "arm64"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "darwin"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/darwin-x64": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/darwin-x64/-/darwin-x64-0.24.2.tgz",
+      "integrity": "sha512-WeSrmwwHaPkNR5H3yYfowhZcbriGqooyu3zI/3GGpF8AyUdsrrP0X6KumITGA9WOyiJavnGZUwPGvxvwfWPHIA==",
+      "cpu": [
+        "x64"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "darwin"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/freebsd-arm64": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/freebsd-arm64/-/freebsd-arm64-0.24.2.tgz",
+      "integrity": "sha512-UN8HXjtJ0k/Mj6a9+5u6+2eZ2ERD7Edt1Q9IZiB5UZAIdPnVKDoG7mdTVGhHJIeEml60JteamR3qhsr1r8gXvg==",
+      "cpu": [
+        "arm64"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "freebsd"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/freebsd-x64": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/freebsd-x64/-/freebsd-x64-0.24.2.tgz",
+      "integrity": "sha512-TvW7wE/89PYW+IevEJXZ5sF6gJRDY/14hyIGFXdIucxCsbRmLUcjseQu1SyTko+2idmCw94TgyaEZi9HUSOe3Q==",
+      "cpu": [
+        "x64"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "freebsd"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/linux-arm": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/linux-arm/-/linux-arm-0.24.2.tgz",
+      "integrity": "sha512-n0WRM/gWIdU29J57hJyUdIsk0WarGd6To0s+Y+LwvlC55wt+GT/OgkwoXCXvIue1i1sSNWblHEig00GBWiJgfA==",
+      "cpu": [
+        "arm"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/linux-arm64": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/linux-arm64/-/linux-arm64-0.24.2.tgz",
+      "integrity": "sha512-7HnAD6074BW43YvvUmE/35Id9/NB7BeX5EoNkK9obndmZBUk8xmJJeU7DwmUeN7tkysslb2eSl6CTrYz6oEMQg==",
+      "cpu": [
+        "arm64"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/linux-ia32": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/linux-ia32/-/linux-ia32-0.24.2.tgz",
+      "integrity": "sha512-sfv0tGPQhcZOgTKO3oBE9xpHuUqguHvSo4jl+wjnKwFpapx+vUDcawbwPNuBIAYdRAvIDBfZVvXprIj3HA+Ugw==",
+      "cpu": [
+        "ia32"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/linux-loong64": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/linux-loong64/-/linux-loong64-0.24.2.tgz",
+      "integrity": "sha512-CN9AZr8kEndGooS35ntToZLTQLHEjtVB5n7dl8ZcTZMonJ7CCfStrYhrzF97eAecqVbVJ7APOEe18RPI4KLhwQ==",
+      "cpu": [
+        "loong64"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/linux-mips64el": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/linux-mips64el/-/linux-mips64el-0.24.2.tgz",
+      "integrity": "sha512-iMkk7qr/wl3exJATwkISxI7kTcmHKE+BlymIAbHO8xanq/TjHaaVThFF6ipWzPHryoFsesNQJPE/3wFJw4+huw==",
+      "cpu": [
+        "mips64el"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/linux-ppc64": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/linux-ppc64/-/linux-ppc64-0.24.2.tgz",
+      "integrity": "sha512-shsVrgCZ57Vr2L8mm39kO5PPIb+843FStGt7sGGoqiiWYconSxwTiuswC1VJZLCjNiMLAMh34jg4VSEQb+iEbw==",
+      "cpu": [
+        "ppc64"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/linux-riscv64": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/linux-riscv64/-/linux-riscv64-0.24.2.tgz",
+      "integrity": "sha512-4eSFWnU9Hhd68fW16GD0TINewo1L6dRrB+oLNNbYyMUAeOD2yCK5KXGK1GH4qD/kT+bTEXjsyTCiJGHPZ3eM9Q==",
+      "cpu": [
+        "riscv64"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/linux-s390x": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/linux-s390x/-/linux-s390x-0.24.2.tgz",
+      "integrity": "sha512-S0Bh0A53b0YHL2XEXC20bHLuGMOhFDO6GN4b3YjRLK//Ep3ql3erpNcPlEFed93hsQAjAQDNsvcK+hV90FubSw==",
+      "cpu": [
+        "s390x"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/linux-x64": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/linux-x64/-/linux-x64-0.24.2.tgz",
+      "integrity": "sha512-8Qi4nQcCTbLnK9WoMjdC9NiTG6/E38RNICU6sUNqK0QFxCYgoARqVqxdFmWkdonVsvGqWhmm7MO0jyTqLqwj0Q==",
+      "cpu": [
+        "x64"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "linux"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/netbsd-arm64": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/netbsd-arm64/-/netbsd-arm64-0.24.2.tgz",
+      "integrity": "sha512-wuLK/VztRRpMt9zyHSazyCVdCXlpHkKm34WUyinD2lzK07FAHTq0KQvZZlXikNWkDGoT6x3TD51jKQ7gMVpopw==",
+      "cpu": [
+        "arm64"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "netbsd"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/netbsd-x64": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/netbsd-x64/-/netbsd-x64-0.24.2.tgz",
+      "integrity": "sha512-VefFaQUc4FMmJuAxmIHgUmfNiLXY438XrL4GDNV1Y1H/RW3qow68xTwjZKfj/+Plp9NANmzbH5R40Meudu8mmw==",
+      "cpu": [
+        "x64"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "netbsd"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/openbsd-arm64": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/openbsd-arm64/-/openbsd-arm64-0.24.2.tgz",
+      "integrity": "sha512-YQbi46SBct6iKnszhSvdluqDmxCJA+Pu280Av9WICNwQmMxV7nLRHZfjQzwbPs3jeWnuAhE9Jy0NrnJ12Oz+0A==",
+      "cpu": [
+        "arm64"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "openbsd"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/openbsd-x64": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/openbsd-x64/-/openbsd-x64-0.24.2.tgz",
+      "integrity": "sha512-+iDS6zpNM6EnJyWv0bMGLWSWeXGN/HTaF/LXHXHwejGsVi+ooqDfMCCTerNFxEkM3wYVcExkeGXNqshc9iMaOA==",
+      "cpu": [
+        "x64"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "openbsd"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/sunos-x64": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/sunos-x64/-/sunos-x64-0.24.2.tgz",
+      "integrity": "sha512-hTdsW27jcktEvpwNHJU4ZwWFGkz2zRJUz8pvddmXPtXDzVKTTINmlmga3ZzwcuMpUvLw7JkLy9QLKyGpD2Yxig==",
+      "cpu": [
+        "x64"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "sunos"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/win32-arm64": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/win32-arm64/-/win32-arm64-0.24.2.tgz",
+      "integrity": "sha512-LihEQ2BBKVFLOC9ZItT9iFprsE9tqjDjnbulhHoFxYQtQfai7qfluVODIYxt1PgdoyQkz23+01rzwNwYfutxUQ==",
+      "cpu": [
+        "arm64"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "win32"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/win32-ia32": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/win32-ia32/-/win32-ia32-0.24.2.tgz",
+      "integrity": "sha512-q+iGUwfs8tncmFC9pcnD5IvRHAzmbwQ3GPS5/ceCyHdjXubwQWI12MKWSNSMYLJMq23/IUCvJMS76PDqXe1fxA==",
+      "cpu": [
+        "ia32"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "win32"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@esbuild/win32-x64": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/@esbuild/win32-x64/-/win32-x64-0.24.2.tgz",
+      "integrity": "sha512-7VTgWzgMGvup6aSqDPLiW5zHaxYJGTO4OokMjIlrCtf+VpEL+cXKtCvg723iguPYI5oaUNdS+/V7OU2gvXVWEg==",
+      "cpu": [
+        "x64"
+      ],
+      "license": "MIT",
+      "optional": true,
+      "os": [
+        "win32"
+      ],
+      "engines": {
+        "node": ">=18"
+      }
+    },
+    "node_modules/@mediapipe/tasks-vision": {
+      "version": "0.10.22-rc.20250304",
+      "resolved": "https://registry.npmjs.org/@mediapipe/tasks-vision/-/tasks-vision-0.10.22-rc.20250304.tgz",
+      "integrity": "sha512-dElxVXMFGthshfIj+qAVm8KE2jmNo2p8oXFib8WzEjb7GNaX/ClWBc8UJfoSZwjEMVrdHJ4YUfa7P3ifl6MIWw==",
+      "license": "Apache-2.0"
+    },
+    "node_modules/ansi-regex": {
+      "version": "5.0.1",
+      "resolved": "https://registry.npmjs.org/ansi-regex/-/ansi-regex-5.0.1.tgz",
+      "integrity": "sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ==",
+      "license": "MIT",
+      "engines": {
+        "node": ">=8"
+      }
+    },
+    "node_modules/ansi-styles": {
+      "version": "4.3.0",
+      "resolved": "https://registry.npmjs.org/ansi-styles/-/ansi-styles-4.3.0.tgz",
+      "integrity": "sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg==",
+      "license": "MIT",
+      "dependencies": {
+        "color-convert": "^2.0.1"
+      },
+      "engines": {
+        "node": ">=8"
+      },
+      "funding": {
+        "url": "https://github.com/chalk/ansi-styles?sponsor=1"
+      }
+    },
+    "node_modules/camelcase": {
+      "version": "5.3.1",
+      "resolved": "https://registry.npmjs.org/camelcase/-/camelcase-5.3.1.tgz",
+      "integrity": "sha512-L28STB170nwWS63UjtlEOE3dldQApaJXZkOI1uMFfzf3rRuPegHaHesyee+YxQ+W6SvRDQV6UrdOdRiR153wJg==",
+      "license": "MIT",
+      "engines": {
+        "node": ">=6"
+      }
+    },
+    "node_modules/cliui": {
+      "version": "6.0.0",
+      "resolved": "https://registry.npmjs.org/cliui/-/cliui-6.0.0.tgz",
+      "integrity": "sha512-t6wbgtoCXvAzst7QgXxJYqPt0usEfbgQdftEPbLL/cvv6HPE5VgvqCuAIDR0NgU52ds6rFwqrgakNLrHEjCbrQ==",
+      "license": "ISC",
+      "dependencies": {
+        "string-width": "^4.2.0",
+        "strip-ansi": "^6.0.0",
+        "wrap-ansi": "^6.2.0"
+      }
+    },
+    "node_modules/color-convert": {
+      "version": "2.0.1",
+      "resolved": "https://registry.npmjs.org/color-convert/-/color-convert-2.0.1.tgz",
+      "integrity": "sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==",
+      "license": "MIT",
+      "dependencies": {
+        "color-name": "~1.1.4"
+      },
+      "engines": {
+        "node": ">=7.0.0"
+      }
+    },
+    "node_modules/color-name": {
+      "version": "1.1.4",
+      "resolved": "https://registry.npmjs.org/color-name/-/color-name-1.1.4.tgz",
+      "integrity": "sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==",
+      "license": "MIT"
+    },
+    "node_modules/decamelize": {
+      "version": "1.2.0",
+      "resolved": "https://registry.npmjs.org/decamelize/-/decamelize-1.2.0.tgz",
+      "integrity": "sha512-z2S+W9X73hAUUki+N+9Za2lBlun89zigOyGrsax+KUQ6wKW4ZoWpEYBkGhQjwAjjDCkWxhY0VKEhk8wzY7F5cA==",
+      "license": "MIT",
+      "engines": {
+        "node": ">=0.10.0"
+      }
+    },
+    "node_modules/dijkstrajs": {
+      "version": "1.0.3",
+      "resolved": "https://registry.npmjs.org/dijkstrajs/-/dijkstrajs-1.0.3.tgz",
+      "integrity": "sha512-qiSlmBq9+BCdCA/L46dw8Uy93mloxsPSbwnm5yrKn2vMPiy8KyAskTF6zuV/j5BMsmOGZDPs7KjU+mjb670kfA==",
+      "license": "MIT"
+    },
+    "node_modules/emoji-regex": {
+      "version": "8.0.0",
+      "resolved": "https://registry.npmjs.org/emoji-regex/-/emoji-regex-8.0.0.tgz",
+      "integrity": "sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==",
+      "license": "MIT"
+    },
+    "node_modules/esbuild": {
+      "version": "0.24.2",
+      "resolved": "https://registry.npmjs.org/esbuild/-/esbuild-0.24.2.tgz",
+      "integrity": "sha512-+9egpBW8I3CD5XPe0n6BfT5fxLzxrlDzqydF3aviG+9ni1lDC/OvMHcxqEFV0+LANZG5R1bFMWfUrjVsdwxJvA==",
+      "hasInstallScript": true,
+      "license": "MIT",
+      "bin": {
+        "esbuild": "bin/esbuild"
+      },
+      "engines": {
+        "node": ">=18"
+      },
+      "optionalDependencies": {
+        "@esbuild/aix-ppc64": "0.24.2",
+        "@esbuild/android-arm": "0.24.2",
+        "@esbuild/android-arm64": "0.24.2",
+        "@esbuild/android-x64": "0.24.2",
+        "@esbuild/darwin-arm64": "0.24.2",
+        "@esbuild/darwin-x64": "0.24.2",
+        "@esbuild/freebsd-arm64": "0.24.2",
+        "@esbuild/freebsd-x64": "0.24.2",
+        "@esbuild/linux-arm": "0.24.2",
+        "@esbuild/linux-arm64": "0.24.2",
+        "@esbuild/linux-ia32": "0.24.2",
+        "@esbuild/linux-loong64": "0.24.2",
+        "@esbuild/linux-mips64el": "0.24.2",
+        "@esbuild/linux-ppc64": "0.24.2",
+        "@esbuild/linux-riscv64": "0.24.2",
+        "@esbuild/linux-s390x": "0.24.2",
+        "@esbuild/linux-x64": "0.24.2",
+        "@esbuild/netbsd-arm64": "0.24.2",
+        "@esbuild/netbsd-x64": "0.24.2",
+        "@esbuild/openbsd-arm64": "0.24.2",
+        "@esbuild/openbsd-x64": "0.24.2",
+        "@esbuild/sunos-x64": "0.24.2",
+        "@esbuild/win32-arm64": "0.24.2",
+        "@esbuild/win32-ia32": "0.24.2",
+        "@esbuild/win32-x64": "0.24.2"
+      }
+    },
+    "node_modules/find-up": {
+      "version": "4.1.0",
+      "resolved": "https://registry.npmjs.org/find-up/-/find-up-4.1.0.tgz",
+      "integrity": "sha512-PpOwAdQ/YlXQ2vj8a3h8IipDuYRi3wceVQQGYWxNINccq40Anw7BlsEXCMbt1Zt+OLA6Fq9suIpIWD0OsnISlw==",
+      "license": "MIT",
+      "dependencies": {
+        "locate-path": "^5.0.0",
+        "path-exists": "^4.0.0"
+      },
+      "engines": {
+        "node": ">=8"
+      }
+    },
+    "node_modules/get-caller-file": {
+      "version": "2.0.5",
+      "resolved": "https://registry.npmjs.org/get-caller-file/-/get-caller-file-2.0.5.tgz",
+      "integrity": "sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg==",
+      "license": "ISC",
+      "engines": {
+        "node": "6.* || 8.* || >= 10.*"
+      }
+    },
+    "node_modules/is-fullwidth-code-point": {
+      "version": "3.0.0",
+      "resolved": "https://registry.npmjs.org/is-fullwidth-code-point/-/is-fullwidth-code-point-3.0.0.tgz",
+      "integrity": "sha512-zymm5+u+sCsSWyD9qNaejV3DFvhCKclKdizYaJUuHA83RLjb7nSuGnddCHGv0hk+KY7BMAlsWeK4Ueg6EV6XQg==",
+      "license": "MIT",
+      "engines": {
+        "node": ">=8"
+      }
+    },
+    "node_modules/locate-path": {
+      "version": "5.0.0",
+      "resolved": "https://registry.npmjs.org/locate-path/-/locate-path-5.0.0.tgz",
+      "integrity": "sha512-t7hw9pI+WvuwNJXwk5zVHpyhIqzg2qTlklJOf0mVxGSbe3Fp2VieZcduNYjaLDoy6p9uGpQEGWG87WpMKlNq8g==",
+      "license": "MIT",
+      "dependencies": {
+        "p-locate": "^4.1.0"
+      },
+      "engines": {
+        "node": ">=8"
+      }
+    },
+    "node_modules/lucide": {
+      "version": "0.468.0",
+      "resolved": "https://registry.npmjs.org/lucide/-/lucide-0.468.0.tgz",
+      "integrity": "sha512-UFbgwji/ZnAV7iTTE4jujyTV7J95AILKyATDUrqOJrMcUGfXvGjw3c1mcuHZUX2oJfkrAGU9KoxkrLQk2jjtiA==",
+      "license": "ISC"
+    },
+    "node_modules/p-limit": {
+      "version": "2.3.0",
+      "resolved": "https://registry.npmjs.org/p-limit/-/p-limit-2.3.0.tgz",
+      "integrity": "sha512-//88mFWSJx8lxCzwdAABTJL2MyWB12+eIY7MDL2SqLmAkeKU9qxRvWuSyTjm3FUmpBEMuFfckAIqEaVGUDxb6w==",
+      "license": "MIT",
+      "dependencies": {
+        "p-try": "^2.0.0"
+      },
+      "engines": {
+        "node": ">=6"
+      },
+      "funding": {
+        "url": "https://github.com/sponsors/sindresorhus"
+      }
+    },
+    "node_modules/p-locate": {
+      "version": "4.1.0",
+      "resolved": "https://registry.npmjs.org/p-locate/-/p-locate-4.1.0.tgz",
+      "integrity": "sha512-R79ZZ/0wAxKGu3oYMlz8jy/kbhsNrS7SKZ7PxEHBgJ5+F2mtFW2fK2cOtBh1cHYkQsbzFV7I+EoRKe6Yt0oK7A==",
+      "license": "MIT",
+      "dependencies": {
+        "p-limit": "^2.2.0"
+      },
+      "engines": {
+        "node": ">=8"
+      }
+    },
+    "node_modules/p-try": {
+      "version": "2.2.0",
+      "resolved": "https://registry.npmjs.org/p-try/-/p-try-2.2.0.tgz",
+      "integrity": "sha512-R4nPAVTAU0B9D35/Gk3uJf/7XYbQcyohSKdvAxIRSNghFl4e71hVoGnBNQz9cWaXxO2I10KTC+3jMdvvoKw6dQ==",
+      "license": "MIT",
+      "engines": {
+        "node": ">=6"
+      }
+    },
+    "node_modules/path-exists": {
+      "version": "4.0.0",
+      "resolved": "https://registry.npmjs.org/path-exists/-/path-exists-4.0.0.tgz",
+      "integrity": "sha512-ak9Qy5Q7jYb2Wwcey5Fpvg2KoAc/ZIhLSLOSBmRmygPsGwkVVt0fZa0qrtMz+m6tJTAHfZQ8FnmB4MG4LWy7/w==",
+      "license": "MIT",
+      "engines": {
+        "node": ">=8"
+      }
+    },
+    "node_modules/pngjs": {
+      "version": "5.0.0",
+      "resolved": "https://registry.npmjs.org/pngjs/-/pngjs-5.0.0.tgz",
+      "integrity": "sha512-40QW5YalBNfQo5yRYmiw7Yz6TKKVr3h6970B2YE+3fQpsWcrbj1PzJgxeJ19DRQjhMbKPIuMY8rFaXc8moolVw==",
+      "license": "MIT",
+      "engines": {
+        "node": ">=10.13.0"
+      }
+    },
+    "node_modules/qrcode": {
+      "version": "1.5.4",
+      "resolved": "https://registry.npmjs.org/qrcode/-/qrcode-1.5.4.tgz",
+      "integrity": "sha512-1ca71Zgiu6ORjHqFBDpnSMTR2ReToX4l1Au1VFLyVeBTFavzQnv5JxMFr3ukHVKpSrSA2MCk0lNJSykjUfz7Zg==",
+      "license": "MIT",
+      "dependencies": {
+        "dijkstrajs": "^1.0.1",
+        "pngjs": "^5.0.0",
+        "yargs": "^15.3.1"
+      },
+      "bin": {
+        "qrcode": "bin/qrcode"
+      },
+      "engines": {
+        "node": ">=10.13.0"
+      }
+    },
+    "node_modules/require-directory": {
+      "version": "2.1.1",
+      "resolved": "https://registry.npmjs.org/require-directory/-/require-directory-2.1.1.tgz",
+      "integrity": "sha512-fGxEI7+wsG9xrvdjsrlmL22OMTTiHRwAMroiEeMgq8gzoLC/PQr7RsRDSTLUg/bZAZtF+TVIkHc6/4RIKrui+Q==",
+      "license": "MIT",
+      "engines": {
+        "node": ">=0.10.0"
+      }
+    },
+    "node_modules/require-main-filename": {
+      "version": "2.0.0",
+      "resolved": "https://registry.npmjs.org/require-main-filename/-/require-main-filename-2.0.0.tgz",
+      "integrity": "sha512-NKN5kMDylKuldxYLSUfrbo5Tuzh4hd+2E8NPPX02mZtn1VuREQToYe/ZdlJy+J3uCpfaiGF05e7B8W0iXbQHmg==",
+      "license": "ISC"
+    },
+    "node_modules/set-blocking": {
+      "version": "2.0.0",
+      "resolved": "https://registry.npmjs.org/set-blocking/-/set-blocking-2.0.0.tgz",
+      "integrity": "sha512-KiKBS8AnWGEyLzofFfmvKwpdPzqiy16LvQfK3yv/fVH7Bj13/wl3JSR1J+rfgRE9q7xUJK4qvgS8raSOeLUehw==",
+      "license": "ISC"
+    },
+    "node_modules/string-width": {
+      "version": "4.2.3",
+      "resolved": "https://registry.npmjs.org/string-width/-/string-width-4.2.3.tgz",
+      "integrity": "sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==",
+      "license": "MIT",
+      "dependencies": {
+        "emoji-regex": "^8.0.0",
+        "is-fullwidth-code-point": "^3.0.0",
+        "strip-ansi": "^6.0.1"
+      },
+      "engines": {
+        "node": ">=8"
+      }
+    },
+    "node_modules/strip-ansi": {
+      "version": "6.0.1",
+      "resolved": "https://registry.npmjs.org/strip-ansi/-/strip-ansi-6.0.1.tgz",
+      "integrity": "sha512-Y38VPSHcqkFrCpFnQ9vuSXmquuv5oXOKpGeT6aGrr3o3Gc9AlVa6JBfUSOCnbxGGZF+/0ooI7KrPuUSztUdU5A==",
+      "license": "MIT",
+      "dependencies": {
+        "ansi-regex": "^5.0.1"
+      },
+      "engines": {
+        "node": ">=8"
+      }
+    },
+    "node_modules/three": {
+      "version": "0.170.0",
+      "resolved": "https://registry.npmjs.org/three/-/three-0.170.0.tgz",
+      "integrity": "sha512-FQK+LEpYc0fBD+J8g6oSEyyNzjp+Q7Ks1C568WWaoMRLW+TkNNWmenWeGgJjV105Gd+p/2ql1ZcjYvNiPZBhuQ==",
+      "license": "MIT"
+    },
+    "node_modules/which-module": {
+      "version": "2.0.1",
+      "resolved": "https://registry.npmjs.org/which-module/-/which-module-2.0.1.tgz",
+      "integrity": "sha512-iBdZ57RDvnOR9AGBhML2vFZf7h8vmBjhoaZqODJBFWHVtKkDmKuHai3cx5PgVMrX5YDNp27AofYbAwctSS+vhQ==",
+      "license": "ISC"
+    },
+    "node_modules/wrap-ansi": {
+      "version": "6.2.0",
+      "resolved": "https://registry.npmjs.org/wrap-ansi/-/wrap-ansi-6.2.0.tgz",
+      "integrity": "sha512-r6lPcBGxZXlIcymEu7InxDMhdW0KDxpLgoFLcguasxCaJ/SOIZwINatK9KY/tf+ZrlywOKU0UDj3ATXUBfxJXA==",
+      "license": "MIT",
+      "dependencies": {
+        "ansi-styles": "^4.0.0",
+        "string-width": "^4.1.0",
+        "strip-ansi": "^6.0.0"
+      },
+      "engines": {
+        "node": ">=8"
+      }
+    },
+    "node_modules/y18n": {
+      "version": "4.0.3",
+      "resolved": "https://registry.npmjs.org/y18n/-/y18n-4.0.3.tgz",
+      "integrity": "sha512-JKhqTOwSrqNA1NY5lSztJ1GrBiUodLMmIZuLiDaMRJ+itFd+ABVE8XBjOvIWL+rSqNDC74LCSFmlb/U4UZ4hJQ==",
+      "license": "ISC"
+    },
+    "node_modules/yargs": {
+      "version": "15.4.1",
+      "resolved": "https://registry.npmjs.org/yargs/-/yargs-15.4.1.tgz",
+      "integrity": "sha512-aePbxDmcYW++PaqBsJ+HYUFwCdv4LVvdnhBy78E57PIor8/OVvhMrADFFEDh8DHDFRv/O9i3lPhsENjO7QX0+A==",
+      "license": "MIT",
+      "dependencies": {
+        "cliui": "^6.0.0",
+        "decamelize": "^1.2.0",
+        "find-up": "^4.1.0",
+        "get-caller-file": "^2.0.1",
+        "require-directory": "^2.1.1",
+        "require-main-filename": "^2.0.0",
+        "set-blocking": "^2.0.0",
+        "string-width": "^4.2.0",
+        "which-module": "^2.0.0",
+        "y18n": "^4.0.0",
+        "yargs-parser": "^18.1.2"
+      },
+      "engines": {
+        "node": ">=8"
+      }
+    },
+    "node_modules/yargs-parser": {
+      "version": "18.1.3",
+      "resolved": "https://registry.npmjs.org/yargs-parser/-/yargs-parser-18.1.3.tgz",
+      "integrity": "sha512-o50j0JeToy/4K6OZcaQmW6lyXXKhq7csREXcDwk2omFPJEwUNOVtJKvmDr9EI1fAJZUyZcRF7kxGBWmRXudrCQ==",
+      "license": "ISC",
+      "dependencies": {
+        "camelcase": "^5.0.0",
+        "decamelize": "^1.2.0"
+      },
+      "engines": {
+        "node": ">=6"
+      }
+    }
+  }
+}
+
+15 站点部署配置
+.openai/hosting.json
+原站点标识与 R2 绑定配置，不包含账号密钥。
+{
+  "project_id": "appgprj_6af5442fb8e08191b0c652a08001d2cd",
+  "r2": "BUCKET"
+}
+16 版本控制忽略规则
+.gitignore
+排除本地数据、依赖和日志。
+node_modules/
+.local-data/
+work/npm-cache/
+*.log
+
+17 Windows 启动脚本
+启动网站-Windows.bat
+在 Windows 中启动本地网站。
+@echo off
+chcp 65001 >nul
+cd /d "%~dp0"
+where node >nul 2>nul
+if errorlevel 1 (
+  echo 请先安装 Node.js 22 或更新版本：https://nodejs.org/
+  pause
+  exit /b 1
+)
+node scripts/local-server.mjs
+pause
+
+18 macOS 启动脚本
+启动网站-macOS.command
+在 macOS 中启动本地网站。
+#!/bin/sh
+cd "$(dirname "$0")" || exit 1
+if ! command -v node >/dev/null 2>&1; then
+  echo '请先安装 Node.js 22 或更新版本：https://nodejs.org/'
+  exit 1
+fi
+node scripts/local-server.mjs
+
+19 项目说明
+README.md
+使用流程、同步机制、功能边界及验证范围。
+> 下载包运行请先阅读“先读我-下载与运行.txt”。
+> 已包含免安装依赖的本地启动脚本：`node scripts/local-server.mjs`。
+
+# 物见 LIVE STUDIO — 360°商品三维互动直播展示平台
+
+基于 Three.js、Cloudflare Worker 与 R2 的主播控播原型。保留原站点地址，升级为主播控制台、独立 OBS 输出页和观众互动入口。
+
+参考 Presenter3D 的引导式演示、事件动画、材质切换和镜头移动理念；没有使用其品牌、源码或模型。
+
+## 构建与检查
+
+```sh
+npm ci --cache ./work/npm-cache
+npm run check
+npm run build
+node work/studio/test.mjs
+```
+
+`work/studio/` 为前端源码，`worker/index.js` 为服务端源码。`dist/server/index.js` 为包含页面、脚本和两个真实 GLB 的单文件 Worker 构建产物。`.openai/hosting.json` 声明 `BUCKET` R2 绑定。
+
+## 使用流程
+
+1. 打开首页，创建一个云端演示房间。控播密钥保存在当前浏览器，不包含在分享链接中。
+2. 切换 AURA 耳机和 LUNE 茶礼盒，拖动、缩放、切换六个方向与展示模式。
+3. 三步场景支持全景、材质特写和结构拆解。自动导览每 8 秒进入下一步。
+4. 点击「输出到 OBS」，复制独立画面 URL。OBS 浏览器来源建议 1920 × 1080 / 30 FPS。
+5. 分享观众链接。观众发送请求、投票和收藏；主播采纳请求后改变模型画面。
+6. 手势功能需主动授权摄像头，使用 MediaPipe 在本机识别；首次需加载模型与 WASM。视频不上传。
+
+## 同步与输出边界
+
+- 使用真实服务端 HTTP 状态同步，1.3 秒一次；输出页插值过渡。通常延迟约 1–2 秒，不是 WebSocket / 视频直播推流。
+- R2 保存房间配置、模型状态、观众互动与用户上传的 GLB。房间访问有效期为 24 小时。
+- 「开始、暂停、结束」控制本站演示状态，没有接入抖音、淘宝、微信等平台直播 API。
+- OBS 可输出透明背景。主播讲解分屏预留摄像头区域，视频画面需通过 OBS 视频采集来源叠加。
+- 两款模型均为原创概念商品。参数、材质和结构仅用于交互展示。
+- 用户 GLB 最大 30 MB，可同步至输出与观众页。GLTF 及关联资源仅在本机预览，输出保留上一商品。
+- 任意观众不能写入主播相机状态。主播 API 需要房间密钥，观众仅能写入自己的请求与投票记录。
+- 互动面板统计最近最多 200 个参与者，每人保留最近 30 条请求；不冒充直播平台完整运营报表。
+- 自定义模型保留原始材质，热点、导览与部件拆解需后续为正式商品配置。
+
+## 已验证与未验证
+
+服务端自动检查涵盖：控播权限隔离、跨客户端相机状态传递、观众请求不抢占镜头、投票收藏、GLB 上传读取、两款 PBR 模型解析与页面资源响应。
+执行环境没有提供受支持的浏览器控制工具，未完成浏览器视觉、OBS 软件、摄像头和手机真机验收。
+
+20 下载包运行说明
+先读我-下载与运行.txt
+解压、启动、修改、数据存储与部署说明。
+物见 LIVE STUDIO · 完整网站文件包
+
+一、最快打开方式
+1. 将整个 ZIP 解压到一个文件夹，不要只打开其中的 index.html。
+2. 安装 Node.js 22 或更新版本：https://nodejs.org/
+3. Windows：双击“启动网站-Windows.bat”。
+   macOS：双击“启动网站-macOS.command”。如被系统阻止，可用终端运行以下命令。
+   macOS / Linux / Windows 终端通用：
+      node scripts/local-server.mjs
+4. 保持终端窗口开启，在浏览器打开：
+      http://localhost:8080
+5. 按 Ctrl+C 停止服务。
+
+包内已附带构建好的网站，因此初次运行不需要 npm install。
+3D 模型、页面和主脚本已包含在包内。手势识别首次加载需要联网；字体无法联网时会使用系统字体。
+
+二、包含的文件
+- dist/：构建好的页面、脚本、两款真实 GLB 模型与服务端。
+- work/studio/：主播控制台、Three.js 场景、手势识别和测试源码。
+- work/model.mjs：耳机模型生成脚本。
+- work/studio/box-model.mjs：礼盒模型生成脚本。
+- worker/：云端接口源码。
+- scripts/：本地启动服务与独立检查脚本。
+- package.json / package-lock.json：项目依赖与构建命令。
+- .openai/hosting.json：原在线站点的部署配置备份，不包含访问密钥。
+- licenses/：第三方组件许可证。
+
+三、修改代码
+安装依赖：npm ci
+检查语法：npm run check
+重新构建：npm run build
+本地运行：npm start
+不安装依赖也可执行本地包检查：npm run test:local
+
+修改 work/studio/ 中的 JavaScript 后，需要重新构建。
+修改 dist/index.html 或 dist/assets/style.css 后，同样需要重新构建，让本地服务端包含最新页面。
+
+四、数据与分享
+本地服务把演示房间、互动和上传模型保存在 .local-data/，初次运行时自动生成。
+本包不包含线上房间数据、访客信息、账号密码、控播密钥或云端凭证。
+localhost 链接只能在运行服务的这台电脑使用；OBS 在同一台电脑可直接使用输出链接。
+需要手机或其他电脑访问时，应使用已发布的网站，或由开发者部署到支持 HTTPS 与服务端存储的环境。
+原在线地址：https://aura-product-360-studio.buoyantbear8.chatgpt.site/
+
+五、功能边界
+本项目是独立 3D 控播与互动原型，不含抖音、淘宝等平台推流服务。
+本地模式使用文件存储模拟云端对象存储，适合保存、修改和演示。
+线上房间有效期为 24 小时；网站文件本身可长期保存。
+GLB 支持同步；GLTF 及贴图支持本机预览。
+摄像头必须主动授权，手势识别在本机运行。
+OBS 摄像头视频需通过 OBS 视频采集来源叠加。
+浏览器视觉、摄像头识别、OBS 软件与手机触控仍需在使用设备上验收。
+
+六、关于原站点配置
+.openai/hosting.json 保留了原站点 ID，用于识别这份备份的来源。
+如果把源码作为全新站点部署，应使用新站点自己的配置与存储绑定。
+不要将本地 .local-data/ 随源码公开上传。
+
